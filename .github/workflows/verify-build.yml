@@ -54,6 +54,13 @@ jobs:
           sed -i '' 's/composer_icon_folders = \["Telegram"\]/composer_icon_folders = []/' Telegram/BUILD
           grep "composer_icon_folders" Telegram/BUILD
 
+      # 5c. Downgrade Swift Tools Version (Fix 6.0 vs 5.10 mismatch)
+      - name: Downgrade Swift Tools Version
+        run: |
+          echo "Downgrading Swift tools version in XcodeParse/Package.swift..."
+          sed -i '' 's/swift-tools-version: 6.0/swift-tools-version: 5.10/' build-system/XcodeParse/Package.swift
+          head -n 5 build-system/XcodeParse/Package.swift
+
       # 6. Bypass Xcode 26.0 Requirement (FIXED - VERSIONS.JSON)
       # 6. Bypass Xcode 26.0 Requirement (FIXED - VERSIONS.JSON)
       - name: Bypass Xcode Requirement
