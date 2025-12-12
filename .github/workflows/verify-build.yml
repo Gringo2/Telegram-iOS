@@ -15,17 +15,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          submodules: false  # <--- CRITICAL CHANGE: Do not fetch yet
+          submodules: false
           fetch-depth: 1
 
-      # 2. Fix Submodule URLs & Download
-      - name: Download Submodules (Fix URLs)
+      # 2. Fix Submodule URLs (The "Magic" Fix)
+      # This forces Git to look at TelegramMessenger instead of your user account
+      # for any repository that isn't found locally.
+      - name: Redirect Submodule URLs
         run: |
-          # Force .gitmodules to point to the official Telegram repo instead of your fork
-          # macOS sed requires the empty '' argument
-          sed -i '' 's|url = \.\./|url = https://github.com/TelegramMessenger/|g' .gitmodules
+          git config --global url."https://github.com/TelegramMessenger/".insteadOf "https://github.com/${{ github.repository_owner }}/"
           
-          # Now download the submodules from the correct source
+          # Now update submodules. Git will think it's asking 'Gringo2' but will actually ask 'TelegramMessenger'
           git submodule update --init --recursive
 
       - name: Install Build Tools
