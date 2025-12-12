@@ -46,7 +46,15 @@ jobs:
           mv build-system/fake-codesigning/BroadcastUpload.mobileprovision build-system/fake-codesigning/profiles/ || true
           
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
+          
+      # 5b. Remove .icon bundles (Requires Xcode 26)
+      - name: Remove Xcode 26 Icon Bundles
+        run: |
+          echo "Removing .icon bundles from Telegram/BUILD..."
+          sed -i '' 's/composer_icon_folders = \["Telegram"\]/composer_icon_folders = []/' Telegram/BUILD
+          grep "composer_icon_folders" Telegram/BUILD
 
+      # 6. Bypass Xcode 26.0 Requirement (FIXED - VERSIONS.JSON)
       # 6. Bypass Xcode 26.0 Requirement (FIXED - VERSIONS.JSON)
       - name: Bypass Xcode Requirement
         run: |
