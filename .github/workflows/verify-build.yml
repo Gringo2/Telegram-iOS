@@ -112,7 +112,7 @@ jobs:
       - name: Verify Compilation (TelegramUI)
         run: |
           xcodebuild build \
-            -workspace Telegram.xcworkspace \
+            -project Telegram/Telegram.xcodeproj \
             -scheme TelegramUI \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
