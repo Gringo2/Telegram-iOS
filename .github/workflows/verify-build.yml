@@ -41,6 +41,10 @@ jobs:
       # This imports the dummy certificates included in the repo
       - name: Setup Fake Certs
         run: |
+          # FIX: One profile is misplaced in the repo root
+          echo "Moving misplaced BroadcastUpload profile..."
+          mv build-system/fake-codesigning/BroadcastUpload.mobileprovision build-system/fake-codesigning/profiles/ || true
+          
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
 
       # 6. Bypass Xcode 26.0 Requirement (FIXED - VERSIONS.JSON)
