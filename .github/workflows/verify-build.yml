@@ -51,14 +51,15 @@ jobs:
             "team_id": "ABCDE12345"
           }' > build-system/telegram-configuration.json
 
-      # 5. Generate the Xcode Project (FIXED)
-      # We added --configurationPath which is now required
+      # 5. Generate the Xcode Project (FIXED AGAIN)
+      # Added --xcodeManagedCodesigning to satisfy the script requirements
       - name: Generate Xcode Project
         run: |
           python3 build-system/Make/Make.py \
             generateProject \
             --configurationPath=build-system/telegram-configuration.json \
-            --disableProvisioningProfiles
+            --disableProvisioningProfiles \
+            --xcodeManagedCodesigning
 
       # 6. Attempt to Compile (The Moment of Truth)
       - name: Verify Compilation (TelegramUI)
