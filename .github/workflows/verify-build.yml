@@ -11,11 +11,22 @@ jobs:
     runs-on: macos-14
 
     steps:
+      # 1. Checkout Code (DISABLE submodules here)
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false  # <--- CRITICAL CHANGE: Do not fetch yet
           fetch-depth: 1
+
+      # 2. Fix Submodule URLs & Download
+      - name: Download Submodules (Fix URLs)
+        run: |
+          # Force .gitmodules to point to the official Telegram repo instead of your fork
+          # macOS sed requires the empty '' argument
+          sed -i '' 's|url = \.\./|url = https://github.com/TelegramMessenger/|g' .gitmodules
+          
+          # Now download the submodules from the correct source
+          git submodule update --init --recursive
 
       - name: Install Build Tools
         run: brew install cmake yasm
