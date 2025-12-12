@@ -1,0 +1,56 @@
+name: Verify Liquid Glass Build
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  workflow_dispatch:
+
+jobs:
+  ios-build:
+    name: Build & Check Syntax
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install Build Tools
+        run: brew install cmake yasm
+
+      - name: Apply Liquid Glass Patch
+        run: |
+          # Apply patch with whitespace leniency
+          git apply --ignore-space-change --ignore-whitespace --verbose liquid_glass_contest.patch || { echo "Patch failed"; exit 1; }
+          echo "Patch applied successfully!"
+
+      - name: Configure Telegram
+        run: |
+          mkdir -p build-system
+          echo '{
+            "api_id": "${{ secrets.TELEGRAM_API_ID }}",
+            "api_hash": "${{ secrets.TELEGRAM_API_HASH }}",
+            "is_internal_build": false,
+            "is_appstore_build": false,
+            "appstore_id": "123456789",
+            "app_specific_url_scheme": "tg",
+            "premium_bundle_id": "org.telegram.Telegram-iOS.Premium",
+            "team_id": "ABCDE12345"
+          }' > build-system/telegram-configuration.json
+
+      - name: Generate Xcode Project
+        run: |
+          python3 build-system/Make/Make.py \
+            --cacheDir="$HOME/telegram-bazel-cache" \
+            generateProject
+
+      - name: Verify Compilation (TelegramUI)
+        run: |
+          xcodebuild build \
+            -workspace Telegram.xcworkspace \
+            -scheme TelegramUI \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty
