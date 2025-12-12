@@ -43,17 +43,13 @@ jobs:
         run: |
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
 
-      # 6. Bypass Xcode 26.0 Requirement (FIXED)
-      # Only patch Python files to avoid "illegal byte sequence" errors on binaries
+      # 6. Bypass Xcode 26.0 Requirement (FIXED - VERSIONS.JSON)
       - name: Bypass Xcode Requirement
         run: |
-          echo "Hunting down the Xcode 26.0 check..."
-          
-          # Find only .py files and replace 26.0 with 15.0
-          find build-system -name "*.py" -print0 | xargs -0 sed -i '' 's/26\.0/15.0/g'
-          find build-system -name "*.py" -print0 | xargs -0 sed -i '' 's/(26, 0)/(15, 0)/g'
-          
-          echo "Patched Python build scripts."
+          echo "Patching versions.json..."
+          # Replace "26.0" with "15.4" to match the runner's Xcode version
+          sed -i '' 's/"xcode": "26.0"/"xcode": "15.4"/' versions.json
+          cat versions.json
 
       # 7. Configure Telegram
       - name: Configure Telegram
