@@ -30,12 +30,12 @@ jobs:
           git apply --ignore-space-change --ignore-whitespace --verbose liquid_glass_contest.patch || { echo "Patch failed"; exit 1; }
           echo "Patch applied successfully!"
 
-      # 4. Install Dependencies
+      # 4. Install Dependencies (FIXED for macOS 14)
       - name: Install Build Tools
         run: |
           brew install cmake yasm
-          # Telegram's script uses specific python modules
-          pip3 install --user ply
+          # usage of --break-system-packages is required on macOS 14+ runners
+          pip3 install --user ply --break-system-packages
 
       # 5. Setup Fake Code Signing (STOLEN FROM THEIR FILE)
       # This imports the dummy certificates included in the repo
