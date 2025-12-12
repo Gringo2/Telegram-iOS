@@ -59,7 +59,9 @@ jobs:
         run: |
           echo "Downgrading Swift tools version in XcodeParse/Package.swift..."
           sed -i '' 's/swift-tools-version: 6.0/swift-tools-version: 5.10/' build-system/XcodeParse/Package.swift
-          head -n 5 build-system/XcodeParse/Package.swift
+          # Also downgrade XcodeProj from 9.0.0 (requires Swift 6) to 8.20.0
+          sed -i '' 's/exact: "9.0.0"/exact: "8.20.0"/' build-system/XcodeParse/Package.swift
+          cat build-system/XcodeParse/Package.swift
 
       # 6. Bypass Xcode 26.0 Requirement (FIXED - VERSIONS.JSON)
       # 6. Bypass Xcode 26.0 Requirement (FIXED - VERSIONS.JSON)
