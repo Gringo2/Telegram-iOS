@@ -56,14 +56,18 @@ jobs:
         run: |
           mkdir -p build-system
           echo '{
+            "bundle_id": "org.telegram.Telegram-iOS",
             "api_id": "${{ secrets.TELEGRAM_API_ID }}",
             "api_hash": "${{ secrets.TELEGRAM_API_HASH }}",
+            "team_id": "ABCDE12345",
+            "app_center_id": "0",
             "is_internal_build": false,
             "is_appstore_build": false,
-            "appstore_id": "123456789",
+            "appstore_id": "686449807",
             "app_specific_url_scheme": "tg",
-            "premium_bundle_id": "org.telegram.Telegram-iOS.Premium",
-            "team_id": "ABCDE12345"
+            "premium_iap_product_id": "org.telegram.Telegram-iOS.Premium",
+            "enable_siri": true,
+            "enable_icloud": true
           }' > build-system/telegram-configuration.json
 
       # 8. Generate Xcode Project (Fixed with Fake Signing)
