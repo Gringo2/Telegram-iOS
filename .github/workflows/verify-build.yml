@@ -56,10 +56,10 @@ jobs:
         run: |
           mkdir -p build-system
           echo '{
-            "bundle_id": "org.telegram.Telegram-iOS",
+            "bundle_id": "ph.telegra.Telegraph",
             "api_id": "${{ secrets.TELEGRAM_API_ID }}",
             "api_hash": "${{ secrets.TELEGRAM_API_HASH }}",
-            "team_id": "ABCDE12345",
+            "team_id": "C67CF9S4VU",
             "app_center_id": "0",
             "is_internal_build": false,
             "is_appstore_build": false,
