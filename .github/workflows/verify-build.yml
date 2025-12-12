@@ -63,6 +63,14 @@ jobs:
           sed -i '' 's/exact: "9.0.0"/exact: "8.20.0"/' build-system/XcodeParse/Package.swift
           cat build-system/XcodeParse/Package.swift
 
+      # 5d. Fix XcodeParse Rewrite Error (Any to String cast)
+      - name: Fix XcodeParse Compilation
+        run: |
+          echo "Patching XcodeParse/Sources/main.swift to cast Any to String..."
+          # Replace .stringValue with as? String
+          sed -i '' 's/\?\.stringValue/ as? String/g' build-system/XcodeParse/Sources/main.swift
+          grep "as? String" build-system/XcodeParse/Sources/main.swift
+
       # 6. Bypass Xcode 26.0 Requirement (FIXED - VERSIONS.JSON)
       # 6. Bypass Xcode 26.0 Requirement (FIXED - VERSIONS.JSON)
       - name: Bypass Xcode Requirement
