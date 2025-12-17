@@ -9,9 +9,10 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    timeout-minutes: 300  # 5 hours (buffer before 6hr GitHub Actions limit)
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
           fetch-depth: '0'
@@ -36,6 +37,24 @@ jobs:
           fi
           
           xcodebuild -version
+
+      - name: Free up disk space
+        run: |
+          echo "=== Disk space BEFORE cleanup ==="
+          df -h
+          
+          # Remove unnecessary Xcode versions to free ~5-8GB
+          sudo rm -rf /Applications/Xcode_15*.app || true
+          sudo rm -rf /Applications/Xcode_14*.app || true
+          
+          # Remove Android SDK if present
+          sudo rm -rf ~/Library/Android || true
+          
+          # Clean Homebrew taps
+          sudo rm -rf /usr/local/Homebrew/Library/Taps || true
+          
+          echo "=== Disk space AFTER cleanup ==="
+          df -h
 
       - name: Create canonical source directory
         run: |
@@ -65,6 +84,9 @@ jobs:
           echo "BUILD_NUMBER=$(echo $BUILD_NUMBER)" >> $GITHUB_ENV
           echo "APP_VERSION=$(echo $APP_VERSION)" >> $GITHUB_ENV
 
+          echo "=== Disk space BEFORE build ==="
+          df -h
+
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
@@ -74,20 +96,40 @@ jobs:
             --configuration=release_arm64 \
             --buildNumber="$BUILD_NUMBER"
 
-          # collect ipa
+          echo "=== Disk space AFTER build ==="
+          df -h
+
+          # collect ipa with error checking
           OUTPUT_PATH="build/artifacts"
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
-          for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa; do
-            cp "$f" $OUTPUT_PATH/
-          done
+          
+          IPA_PATH=$(find bazel-out -name "Telegram.ipa" -type f 2>/dev/null | head -n 1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "ERROR: Telegram.ipa not found in bazel-out/"
+            echo "=== Contents of bazel-out/ ==="
+            find bazel-out -name "*.ipa" 2>/dev/null || echo "No IPA files found"
+            exit 1
+          fi
+          echo "Found IPA at: $IPA_PATH"
+          cp "$IPA_PATH" "$OUTPUT_PATH/Telegram.ipa"
 
-          # collect dsym
+          # collect dsym with error checking
           mkdir -p build/DSYMs
+          DSYM_COUNT=0
           for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/*.dSYM; do
-            cp -R "$f" build/DSYMs/
+            if [ -e "$f" ]; then
+              cp -R "$f" build/DSYMs/
+              DSYM_COUNT=$((DSYM_COUNT + 1))
+            fi
           done
-          zip -r "./$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs 1>/dev/null
+          echo "Collected $DSYM_COUNT dSYM files"
+          
+          if [ $DSYM_COUNT -gt 0 ]; then
+            zip -r "./$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs 1>/dev/null
+          else
+            echo "WARNING: No dSYM files found (non-fatal)"
+          fi
 
       - name: Create Release
         id: create_release
