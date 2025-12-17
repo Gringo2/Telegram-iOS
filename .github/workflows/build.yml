@@ -92,8 +92,8 @@ jobs:
             --bazelUserRoot="$BAZEL_USER_ROOT" \
             build \
             --configurationPath="build-system/appstore-configuration.json" \
-            --xcodeManagedCodesigning \
-            --configuration=release_arm64 \
+            --codesigningInformationPath=build-system/fake-codesigning \
+            --configuration=debug_sim_arm64 \
             --buildNumber="$BUILD_NUMBER"
 
           echo "=== Disk space AFTER build ==="
