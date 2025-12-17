@@ -129,11 +129,18 @@ jobs:
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
           
-          IPA_PATH=$(find bazel-out -name "Telegram.ipa" -type f 2>/dev/null | head -n 1)
+          # Check standard Bazel output location first
+          if [ -f "bazel-bin/Telegram/Telegram.ipa" ]; then
+            IPA_PATH="bazel-bin/Telegram/Telegram.ipa"
+          else
+            # Fallback: search everywhere
+            IPA_PATH=$(find . -name "Telegram.ipa" -type f -not -path "*/.*" 2>/dev/null | head -n 1)
+          fi
+
           if [ -z "$IPA_PATH" ]; then
-            echo "ERROR: Telegram.ipa not found in bazel-out/"
-            echo "=== Contents of bazel-out/ ==="
-            find bazel-out -name "*.ipa" 2>/dev/null || echo "No IPA files found"
+            echo "ERROR: Telegram.ipa not found"
+            echo "=== Contents of bazel-bin/ ==="
+            ls -R bazel-bin || echo "bazel-bin not found"
             exit 1
           fi
           echo "Found IPA at: $IPA_PATH"
@@ -142,12 +149,13 @@ jobs:
           # collect dsym with error checking
           mkdir -p build/DSYMs
           DSYM_COUNT=0
-          for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/*.dSYM; do
-            if [ -e "$f" ]; then
-              cp -R "$f" build/DSYMs/
-              DSYM_COUNT=$((DSYM_COUNT + 1))
-            fi
+          
+          # Search for dSYMs in bazel-bin first
+          for f in $(find bazel-bin -name "*.dSYM" -type d 2>/dev/null); do
+            cp -R "$f" build/DSYMs/
+            DSYM_COUNT=$((DSYM_COUNT + 1))
           done
+          
           echo "Collected $DSYM_COUNT dSYM files"
           
           if [ $DSYM_COUNT -gt 0 ]; then
