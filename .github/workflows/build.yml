@@ -87,6 +87,31 @@ jobs:
           echo "=== Disk space BEFORE build ==="
           df -h
 
+          # Regenerate provisioning profiles to fix expiration date (Oct 2025 -> Oct 2035)
+          # We do this on the runner because we need openssl and the repo's self-signed cert
+          echo "Regenerating provisioning profiles..."
+          CERTS_DIR="build-system/fake-codesigning/certs"
+          PROFILES_DIR="build-system/fake-codesigning/profiles"
+          KEY_FILE="temp_key.pem"
+          CERT_FILE="temp_cert.pem"
+
+          # Extract key and cert from p12 (password is empty)
+          openssl pkcs12 -in "$CERTS_DIR/SelfSigned.p12" -nocerts -nodes -out "$KEY_FILE" -passin pass:
+          openssl pkcs12 -in "$CERTS_DIR/SelfSigned.p12" -clcerts -nokeys -out "$CERT_FILE" -passin pass:
+
+          for profile in "$PROFILES_DIR"/*.mobileprovision; do
+            # Extract plist content
+            openssl smime -verify -noverify -in "$profile" -inform DER -out "temp.plist" 2>/dev/null || true
+            
+            # Update date: 2025 -> 2035
+            sed -i '' 's/2025-/2035-/g' temp.plist
+            
+            # Re-sign
+            openssl smime -sign -in temp.plist -out "$profile" -outform DER -inkey "$KEY_FILE" -signer "$CERT_FILE" -nodetach
+            echo "Regenerated $(basename "$profile")"
+          done
+          rm -f "$KEY_FILE" "$CERT_FILE" "temp.plist"
+
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
