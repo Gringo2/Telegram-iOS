@@ -188,7 +188,17 @@ jobs:
           asset_name: Telegram.ipa
           asset_content_type: application/zip
 
+      - name: Check dSYM existence
+        id: check_dsyms
+        run: |
+          if [ -f "/Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Upload Release DSYM
+        if: steps.check_dsyms.outputs.exists == 'true'
         id: upload-release-dsym 
         uses: actions/upload-release-asset@v1
         env:
