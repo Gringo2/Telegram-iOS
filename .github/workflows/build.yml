@@ -124,27 +124,33 @@ jobs:
           echo "=== Disk space AFTER build ==="
           df -h
 
-          # collect ipa with error checking
+          # collect .app bundle for Simulator
           OUTPUT_PATH="build/artifacts"
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
           
-          # Check standard Bazel output location first
-          if [ -f "bazel-bin/Telegram/Telegram.ipa" ]; then
-            IPA_PATH="bazel-bin/Telegram/Telegram.ipa"
+          # Check for Simulator .app bundle
+          if [ -d "bazel-bin/Telegram/Telegram.app" ]; then
+            APP_PATH="bazel-bin/Telegram/Telegram.app"
           else
-            # Fallback: search everywhere
-            IPA_PATH=$(find . -name "Telegram.ipa" -type f -not -path "*/.*" 2>/dev/null | head -n 1)
+            # Fallback search
+            APP_PATH=$(find . -name "Telegram.app" -type d -not -path "*/.*" 2>/dev/null | head -n 1)
           fi
 
-          if [ -z "$IPA_PATH" ]; then
-            echo "ERROR: Telegram.ipa not found"
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: Telegram.app not found"
             echo "=== Contents of bazel-bin/ ==="
             ls -R bazel-bin || echo "bazel-bin not found"
             exit 1
           fi
-          echo "Found IPA at: $IPA_PATH"
-          cp "$IPA_PATH" "$OUTPUT_PATH/Telegram.ipa"
+          echo "Found compiled app at: $APP_PATH"
+          
+          # Zip the .app for upload (it's a directory)
+          cd $(dirname "$APP_PATH")
+          zip -r "$GITHUB_WORKSPACE/$OUTPUT_PATH/Telegram.app.zip" $(basename "$APP_PATH")
+          cd $GITHUB_WORKSPACE
+
+          echo "Prepared Telegram.app.zip"
 
           # collect dsym with error checking
           mkdir -p build/DSYMs
@@ -184,8 +190,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa
-          asset_name: Telegram.ipa
+          asset_path: /Users/Shared/telegram-ios/build/artifacts/Telegram.app.zip
+          asset_name: Telegram.app.zip
           asset_content_type: application/zip
 
       - name: Check dSYM existence

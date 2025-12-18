@@ -1,0 +1,143 @@
+workflows:
+  ios-telegram:
+    name: Telegram iOS Build
+    instance_type: mac_mini_m1
+    max_build_duration: 120
+    environment:
+      groups:
+        - telegram_credentials
+      xcode: latest
+      cocoapods: default
+    cache:
+      cache_paths:
+        - $HOME/.cache/bazel
+    scripts:
+      - name: Setup Canonical Directory
+        script: |
+          set -e
+          set -x
+          # Install Metal Toolchain if missing (Fixes build failure)
+          sudo xcodebuild -downloadComponent MetalToolchain || echo "Metal Toolchain download failed or not needed"
+          
+          # Bazel often requires short/stable paths. Replicating CI logic.
+          sudo mkdir -p /Users/Shared
+          # Copy current workspace (Codemagic clones to $CM_BUILD_DIR)
+          cp -R $CM_BUILD_DIR /Users/Shared/
+          # Rename to expected directory
+          mv /Users/Shared/$(basename $CM_BUILD_DIR) /Users/Shared/telegram-ios
+      
+      - name: Patch Provisioning Profiles (Robust)
+        script: |
+          set -e
+          set -x
+          cd /Users/Shared/telegram-ios
+          
+          # 1. Extract SelfSigned Certificate as Base64
+          # This is the "Identity Fix" from ci/pipeline
+          # Note: Added -legacy because Codemagic OpenSSL 3.x rejects RC2-40-CBC by default
+          CERT_B64=$(openssl pkcs12 -legacy -in build-system/fake-codesigning/certs/SelfSigned.p12 -passin pass: -nodes -nokeys | openssl x509 | grep -v '^-' | tr -d '\n')
+          
+          # 2. Iterate and patch profiles
+          # We update ALL profiles in the fake-codesigning directory
+          find build-system/fake-codesigning -name "*.mobileprovision" | while read profile; do
+              echo "Patching profile: $profile"
+              # Extract PLIST
+              security cms -D -i "$profile" > temp.plist
+              # CRITICAL: Inject our SelfSigned cert into DeveloperCertificates
+              plutil -replace DeveloperCertificates -xml "<array><data>${CERT_B64}</data></array>" temp.plist
+              
+              # CRITICAL: Fix ExpirationDate (Extend to 2035) to prevent build failure
+              plutil -replace ExpirationDate -date "2035-01-01T12:00:00Z" temp.plist
+              
+              # 3. Extract Certificate and Key for Re-signing
+              openssl pkcs12 -legacy -in build-system/fake-codesigning/certs/SelfSigned.p12 -passin pass: -nokeys -out cert.pem
+              openssl pkcs12 -legacy -in build-system/fake-codesigning/certs/SelfSigned.p12 -passin pass: -nocerts -nodes -out key.pem
+              
+              # 4. Re-sign the modified plist into a valid CMS profile
+              # Make.py requires DER format signed data
+              openssl smime -sign -in temp.plist -out "$profile" -signer cert.pem -inkey key.pem -outform DER -nodetach
+          done
+          
+          # Explicitly install checks
+          python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
+
+      - name: Inject API Credentials
+        script: |
+          set -e
+          set -x
+          cd /Users/Shared/telegram-ios
+          
+          CONFIG_PATH="build-system/appstore-configuration.json"
+          
+          if [ -n "$APP_ID" ] && [ -n "$APP_HASH" ]; then
+             echo "Injecting Custom App ID/Hash..."
+             # Use sed to replace the default "8" and hash. 
+             # We look for "api_id": "..." and "api_hash": "..."
+             sed -i '' 's/"api_id": "[^"]*"/"api_id": "'"$APP_ID"'"/' "$CONFIG_PATH"
+             sed -i '' 's/"api_hash": "[^"]*"/"api_hash": "'"$APP_HASH"'"/' "$CONFIG_PATH"
+          else
+             echo "Using default Open Source credentials (APP_ID not set)"
+          fi
+
+      - name: Build App
+        script: |
+          set -e
+          set -x
+          cd /Users/Shared/telegram-ios
+          
+          BAZEL_USER_ROOT="/private/var/tmp/_bazel_containerhost"
+          BUILD_NUMBER_OFFSET="$(cat build_number_offset)"
+          
+          # Extract versions
+          APP_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["app"]);')
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          BUILD_NUMBER=$(($COMMIT_COUNT+$BUILD_NUMBER_OFFSET))
+          
+          # Build with output trapping
+          set +e 
+          python3 -u build-system/Make/Make.py \
+            --bazelUserRoot="$BAZEL_USER_ROOT" \
+            --overrideXcodeVersion \
+            --bazelArguments="--disk_cache=$HOME/.cache/bazel" \
+            build \
+            --configurationPath="build-system/appstore-configuration.json" \
+            --codesigningInformationPath=build-system/fake-codesigning \
+            --configuration=release_arm64 \
+            --buildNumber="$BUILD_NUMBER" > build.log 2>&1
+          
+          STATUS=$?
+          set -e
+          
+          if [ $STATUS -ne 0 ]; then
+             echo "================================================================"
+             echo "BUILD FAILED! Extracting errors from log..."
+             echo "================================================================"
+             grep -iE "error:|warning:|fail" build.log | tail -n 50
+             echo "================================================================"
+             exit $STATUS
+          else
+             echo "Build Succeeded!"
+          fi
+
+      - name: Collect Artifacts
+        script: |
+          set -e
+          set -x
+          cd /Users/Shared/telegram-ios
+          
+          OUTPUT_PATH="$CM_EXPORT_DIR"
+          mkdir -p "$OUTPUT_PATH"
+          
+          # Collect IPA
+          find bazel-out -name "Telegram.ipa" -exec cp {} "$OUTPUT_PATH/" \;
+          
+          # Collect dSYMs
+          mkdir -p build/DSYMs
+          find bazel-out -name "*.dSYM" -type d -exec cp -R {} build/DSYMs/ \;
+          if [ -d "build/DSYMs" ]; then
+             zip -r "$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs
+          fi
+
+    artifacts:
+      - $CM_EXPORT_DIR/*.ipa
+      - $CM_EXPORT_DIR/*.zip
