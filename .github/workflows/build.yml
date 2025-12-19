@@ -159,8 +159,11 @@ jobs:
           fi
           
           # Zip the .app for upload
+          # We are currently in SOURCE_DIR (/Users/Shared/telegram-ios)
+          ABSOLUTE_OUTPUT_PATH="$(pwd)/$OUTPUT_PATH"
+          
           cd build/temp_ipa_extract/Payload
-          zip -r "$GITHUB_WORKSPACE/$OUTPUT_PATH/Telegram.app.zip" "Telegram.app"
+          zip -r "$ABSOLUTE_OUTPUT_PATH/Telegram.app.zip" "Telegram.app"
           cd $GITHUB_WORKSPACE
 
           echo "Prepared Telegram.app.zip"
