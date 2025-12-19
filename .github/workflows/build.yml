@@ -124,30 +124,43 @@ jobs:
           echo "=== Disk space AFTER build ==="
           df -h
 
-          # collect .app bundle for Simulator
+          # collect .app bundle for Simulator (extract from IPA)
           OUTPUT_PATH="build/artifacts"
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
           
-          # Check for Simulator .app bundle
-          if [ -d "bazel-bin/Telegram/Telegram.app" ]; then
-            APP_PATH="bazel-bin/Telegram/Telegram.app"
+          # Check standard Bazel output location for IPA
+          if [ -f "bazel-bin/Telegram/Telegram.ipa" ]; then
+            IPA_PATH="bazel-bin/Telegram/Telegram.ipa"
           else
-            # Fallback search
-            APP_PATH=$(find . -name "Telegram.app" -type d -not -path "*/.*" 2>/dev/null | head -n 1)
+            # Fallback: search everywhere
+            IPA_PATH=$(find . -name "Telegram.ipa" -type f -not -path "*/.*" 2>/dev/null | head -n 1)
           fi
 
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: Telegram.app not found"
+          if [ -z "$IPA_PATH" ]; then
+            echo "ERROR: Telegram.ipa not found (cannot extract .app)"
             echo "=== Contents of bazel-bin/ ==="
             ls -R bazel-bin || echo "bazel-bin not found"
             exit 1
           fi
-          echo "Found compiled app at: $APP_PATH"
+          echo "Found IPA at: $IPA_PATH"
           
-          # Zip the .app for upload (it's a directory)
-          cd $(dirname "$APP_PATH")
-          zip -r "$GITHUB_WORKSPACE/$OUTPUT_PATH/Telegram.app.zip" $(basename "$APP_PATH")
+          # Unzip IPA to get the .app bundle
+          echo "Extracting .app from IPA..."
+          mkdir -p build/temp_ipa_extract
+          unzip -q "$IPA_PATH" -d build/temp_ipa_extract
+          
+          APP_PATH="build/temp_ipa_extract/Payload/Telegram.app"
+          
+          if [ ! -d "$APP_PATH" ]; then
+             echo "ERROR: Telegram.app not found in IPA Payload"
+             ls -R build/temp_ipa_extract
+             exit 1
+          fi
+          
+          # Zip the .app for upload
+          cd build/temp_ipa_extract/Payload
+          zip -r "$GITHUB_WORKSPACE/$OUTPUT_PATH/Telegram.app.zip" "Telegram.app"
           cd $GITHUB_WORKSPACE
 
           echo "Prepared Telegram.app.zip"
