@@ -63,6 +63,14 @@ jobs:
           cp -R $GITHUB_WORKSPACE /Users/Shared/
           mv /Users/Shared/$(basename $GITHUB_WORKSPACE) /Users/Shared/telegram-ios
 
+      - name: Cache Bazel
+        uses: actions/cache@v3
+        with:
+          path: ~/.bazel-disk-cache
+          key: bazel-disk-cache-${{ runner.os }}-${{ hashFiles('VERSIONS') }}
+          restore-keys: |
+            bazel-disk-cache-${{ runner.os }}-
+
       - name: Build the App
         run: |
           set -x
@@ -114,6 +122,7 @@ jobs:
 
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           python3 -u build-system/Make/Make.py \
+            --cacheDir="$HOME/.bazel-disk-cache" \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
             build \
             --configurationPath="build-system/appstore-configuration.json" \
