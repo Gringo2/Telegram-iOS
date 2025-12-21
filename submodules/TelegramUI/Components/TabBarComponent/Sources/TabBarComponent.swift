@@ -286,7 +286,12 @@ public final class TabBarComponent: Component {
                 if let itemId = self.item(at: recognizer.location(in: self)), let itemView = self.itemViews[itemId]?.view {
                     let startX = itemView.frame.minX - 4.0
                     self.selectionGestureState = (startX, startX)
-                    self.state?.updated(transition: .spring(duration: 0.4), isLocal: true)
+                    
+                    // Trigger tap highlight at touch location
+                    let tapLocation = recognizer.location(in: self.liquidLensView)
+                    self.liquidLensView.animateTapHighlight(at: tapLocation)
+                    
+                    self.state?.updated(transition: .spring(duration: 0.45), isLocal: true)
                 }
             case .changed:
                 if var selectionGestureState = self.selectionGestureState {
@@ -303,7 +308,7 @@ public final class TabBarComponent: Component {
                     self.overrideSelectedItemId = itemId
                     item.action(false)
                 }
-                self.state?.updated(transition: .spring(duration: 0.4), isLocal: true)
+                self.state?.updated(transition: .spring(duration: 0.45), isLocal: true)
             default:
                 break
             }
@@ -437,7 +442,7 @@ public final class TabBarComponent: Component {
                     itemTransition.setFrame(view: itemComponentView, frame: itemFrame)
                     itemTransition.setPosition(view: selectedItemComponentView, position: itemFrame.center)
                     itemTransition.setBounds(view: selectedItemComponentView, bounds: CGRect(origin: CGPoint(), size: itemFrame.size))
-                    itemTransition.setScale(view: selectedItemComponentView, scale: self.selectionGestureState != nil ? 1.15 : 1.0)
+                    itemTransition.setScale(view: selectedItemComponentView, scale: self.selectionGestureState != nil ? 1.04 : 1.0)
                     
                     if let previousComponent, previousComponent.selectedId != item.id, isItemSelected {
                         itemComponentView.playSelectionAnimation()

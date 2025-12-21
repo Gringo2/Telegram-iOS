@@ -92,6 +92,7 @@ public final class LiquidLensView: UIView {
     private let liftedContainerView: UIView
     public let contentView: UIView
     private let restingBackgroundView: RestingBackgroundView
+    private let specularHighlightLayer: CAGradientLayer
     
     private var legacySelectionView: GlassBackgroundView.ContentImageView?
     private var legacyContentMaskView: UIView?
@@ -129,6 +130,16 @@ public final class LiquidLensView: UIView {
         self.liftedContainerView = UIView()
 
         self.restingBackgroundView = RestingBackgroundView()
+        
+        self.specularHighlightLayer = CAGradientLayer()
+        self.specularHighlightLayer.type = .radial
+        self.specularHighlightLayer.colors = [
+            UIColor(white: 1.0, alpha: 0.3).cgColor,
+            UIColor(white: 1.0, alpha: 0.0).cgColor
+        ]
+        self.specularHighlightLayer.startPoint = CGPoint(x: 0.5, y: 0.5)
+        self.specularHighlightLayer.endPoint = CGPoint(x: 1.0, y: 1.0)
+        self.specularHighlightLayer.opacity = 0.0
 
         super.init(frame: frame)
         
@@ -138,6 +149,9 @@ public final class LiquidLensView: UIView {
         self.backgroundContainer.contentView.addSubview(self.backgroundView)
         self.backgroundView.contentView.addSubview(self.containerView)
         self.containerView.isUserInteractionEnabled = false
+        
+        // Add specular highlight layer above content
+        self.containerView.layer.addSublayer(self.specularHighlightLayer)
         
         if #available(iOS 26.0, *) {
             if let viewClass = NSClassFromString("_UILiquidLensView") as AnyObject as? NSObjectProtocol {
@@ -221,6 +235,34 @@ public final class LiquidLensView: UIView {
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+    
+    public func animateTapHighlight(at location: CGPoint) {
+        assert(Thread.isMainThread, "animateTapHighlight must be called on main thread")
+        
+        // Remove previous animation to prevent stacking on rapid taps
+        self.specularHighlightLayer.removeAnimation(forKey: "tapHighlight")
+        
+        // 40ms opacity spike for tap feedback
+        let animation = CABasicAnimation(keyPath: "opacity")
+        animation.fromValue = 0.0
+        animation.toValue = 1.0
+        animation.duration = 0.04
+        animation.autoreverses = true
+        animation.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        
+        // Position highlight at tap location
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        self.specularHighlightLayer.frame = CGRect(
+            x: location.x - 40.0,
+            y: location.y - 40.0,
+            width: 80.0,
+            height: 80.0
+        )
+        CATransaction.commit()
+        
+        self.specularHighlightLayer.add(animation, forKey: "tapHighlight")
     }
 
     public func update(size: CGSize, selectionX: CGFloat, selectionWidth: CGFloat, isDark: Bool, isLifted: Bool, transition: ComponentTransition) {
