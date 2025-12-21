@@ -238,8 +238,6 @@ public final class LiquidLensView: UIView {
     }
     
     public func animateTapHighlight(at location: CGPoint) {
-        assert(Thread.isMainThread, "animateTapHighlight must be called on main thread")
-        
         // Remove previous animation to prevent stacking on rapid taps
         self.specularHighlightLayer.removeAnimation(forKey: "tapHighlight")
         
