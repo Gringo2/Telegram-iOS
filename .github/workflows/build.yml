@@ -168,6 +168,17 @@ jobs:
             if [ -d "$EXTRACTED_APP" ]; then
                 echo "✓ Extracted Telegram.app from IPA Payload"
                 
+                # VERIFY Info.plist exists
+                if [ ! -f "$EXTRACTED_APP/Info.plist" ]; then
+                    echo "✗ ERROR: Info.plist missing in extracted Telegram.app"
+                    ls -R "$EXTRACTED_APP"
+                    exit 1
+                fi
+                
+                # Check if we can read Bundle ID (sanity check)
+                BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$EXTRACTED_APP/Info.plist" || echo "Unknown")
+                echo "✓ Verified Bundle ID: $BUNDLE_ID"
+                
                 # Zip the .app for distribution using absolute output path
                 # Use subshell to cd into Payload so zip structure is correct (Telegram.app at root of zip)
                 (cd build/temp_ipa_extract/Payload && zip -r -v "$ABSOLUTE_OUTPUT_PATH/Telegram.app.zip" Telegram.app)
