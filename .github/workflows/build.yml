@@ -153,26 +153,52 @@ jobs:
           echo "Repo root: $REPO_ROOT"
           echo "Output: $ABSOLUTE_OUTPUT_PATH"
           
-          if [ -d "bazel-bin/Telegram/Telegram.app" ]; then
-            echo "✓ Found Simulator build: Telegram.app"
+          # Bazel seems to produce an IPA even for Simulator builds.
+          # We need to extract the .app from it for the Simulator.
+          if [ -f "bazel-bin/Telegram/Telegram.ipa" ]; then
+            echo "✓ Found Build Artifact: Telegram.ipa"
             
-            # Zip the .app for distribution using absolute output path
+            # Since we want a Simulator .app, let's extract it from the IPA
+            echo "Extracting Telegram.app from IPA..."
+            mkdir -p build/temp_ipa_extract
+            unzip -q "bazel-bin/Telegram/Telegram.ipa" -d build/temp_ipa_extract
+            
+            EXTRACTED_APP="build/temp_ipa_extract/Payload/Telegram.app"
+            
+            if [ -d "$EXTRACTED_APP" ]; then
+                echo "✓ Extracted Telegram.app from IPA Payload"
+                
+                # Zip the .app for distribution using absolute output path
+                # Use subshell to cd into Payload so zip structure is correct (Telegram.app at root of zip)
+                (cd build/temp_ipa_extract/Payload && zip -r -v "$ABSOLUTE_OUTPUT_PATH/Telegram.app.zip" Telegram.app)
+                
+                if [ -f "$OUTPUT_PATH/Telegram.app.zip" ]; then
+                  echo "✓ Successfully packaged Telegram.app.zip"
+                  ls -lh "$OUTPUT_PATH/Telegram.app.zip"
+                  echo "artifact_name=Telegram.app.zip" >> $GITHUB_OUTPUT
+                  echo "artifact_path=$ABSOLUTE_OUTPUT_PATH/Telegram.app.zip" >> $GITHUB_OUTPUT
+                else
+                  echo "✗ ERROR: Failed to create Telegram.app.zip"
+                  exit 1
+                fi
+            else
+                echo "✗ ERROR: Telegram.app not found in IPA Payload"
+                ls -R build/temp_ipa_extract
+                exit 1
+            fi
+            
+          elif [ -d "bazel-bin/Telegram/Telegram.app" ]; then
+            echo "✓ Found Simulator App: Telegram.app (Raw)"
+            
             (cd bazel-bin/Telegram && zip -r -v "$ABSOLUTE_OUTPUT_PATH/Telegram.app.zip" Telegram.app)
             
             if [ -f "$OUTPUT_PATH/Telegram.app.zip" ]; then
               echo "✓ Successfully packaged Telegram.app.zip"
-              ls -lh "$OUTPUT_PATH/Telegram.app.zip"
               echo "artifact_name=Telegram.app.zip" >> $GITHUB_OUTPUT
               echo "artifact_path=$ABSOLUTE_OUTPUT_PATH/Telegram.app.zip" >> $GITHUB_OUTPUT
             else
-              echo "✗ ERROR: Failed to create Telegram.app.zip"
-              exit 1
+               exit 1
             fi
-          elif [ -f "bazel-bin/Telegram/Telegram.ipa" ]; then
-            echo "✓ Found Device build: Telegram.ipa"
-            cp "bazel-bin/Telegram/Telegram.ipa" "$OUTPUT_PATH/Telegram.ipa"
-            echo "artifact_name=Telegram.ipa" >> $GITHUB_OUTPUT
-            echo "artifact_path=$ABSOLUTE_OUTPUT_PATH/Telegram.ipa" >> $GITHUB_OUTPUT
           else
             echo "✗ ERROR: Neither Telegram.app nor Telegram.ipa found"
             ls -la bazel-bin/Telegram/
