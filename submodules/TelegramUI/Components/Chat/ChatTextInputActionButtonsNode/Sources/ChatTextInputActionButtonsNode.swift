@@ -18,6 +18,7 @@ import AnimatedCountLabelNode
 import GlassBackgroundComponent
 import ComponentDisplayAdapters
 import StarsParticleEffect
+import LiquidGlass
 
 private final class EffectBadgeView: UIView {
     private let context: AccountContext
@@ -137,11 +138,13 @@ public final class ChatTextInputActionButtonsNode: ASDisplayNode, ChatSendMessag
     public let micButtonBackgroundView: GlassBackgroundView
     public let micButtonTintMaskView: UIImageView
     public let micButton: ChatTextInputMediaRecordingButton
+    private let micButtonGlassController = GlassEffectController()
     
     public let sendContainerNode: ASDisplayNode
     public let sendButtonBackgroundView: UIImageView
     private var sendButtonBackgroundEffectLayer: StarsParticleEffectLayer?
     public let sendButton: HighlightTrackingButtonNode
+    private let sendButtonGlassController = GlassEffectController()
     public var sendButtonRadialStatusNode: ChatSendButtonRadialStatusNode?
     public var sendButtonHasApplyIcon = false
     public var animatingSendButton = false
@@ -151,6 +154,7 @@ public final class ChatTextInputActionButtonsNode: ASDisplayNode, ChatSendMessag
     public let expandMediaInputButton: HighlightTrackingButton
     private let expandMediaInputButtonBackgroundView: GlassBackgroundView
     private let expandMediaInputButtonIcon: GlassBackgroundView.ContentImageView
+    private let expandButtonGlassController = GlassEffectController()
     
     private var effectBadgeView: EffectBadgeView?
     
@@ -183,6 +187,8 @@ public final class ChatTextInputActionButtonsNode: ASDisplayNode, ChatSendMessag
         self.micButtonBackgroundView = GlassBackgroundView()
         self.maskContentView = UIView()
         
+        self.micButtonBackgroundView.contentView.layer.addSublayer(self.micButtonGlassController.highlightLayer)
+        
         self.micButtonTintMaskView = UIImageView()
         self.micButtonTintMaskView.tintColor = .black
         self.micButton = ChatTextInputMediaRecordingButton(context: context, theme: theme, pause: true, strings: strings, presentController: presentController)
@@ -195,6 +201,7 @@ public final class ChatTextInputActionButtonsNode: ASDisplayNode, ChatSendMessag
         self.sendButtonBackgroundView = UIImageView()
         self.sendButtonBackgroundView.image = generateStretchableFilledCircleImage(diameter: 34.0, color: .white)?.withRenderingMode(.alwaysTemplate)
         self.sendButton = HighlightTrackingButtonNode(pointerStyle: nil)
+        self.sendButtonBackgroundView.layer.addSublayer(self.sendButtonGlassController.highlightLayer)
         
         self.textNode = ImmediateAnimatedCountLabelNode()
         self.textNode.isUserInteractionEnabled = false
@@ -202,6 +209,7 @@ public final class ChatTextInputActionButtonsNode: ASDisplayNode, ChatSendMessag
         self.expandMediaInputButton = HighlightTrackingButton()
         self.expandMediaInputButtonBackgroundView = GlassBackgroundView()
         self.expandMediaInputButtonBackgroundView.isUserInteractionEnabled = false
+        self.expandMediaInputButtonBackgroundView.contentView.layer.addSublayer(self.expandButtonGlassController.highlightLayer)
         self.expandMediaInputButton.addSubview(self.expandMediaInputButtonBackgroundView)
         self.expandMediaInputButtonIcon = GlassBackgroundView.ContentImageView()
         self.expandMediaInputButtonBackgroundView.contentView.addSubview(self.expandMediaInputButtonIcon)
@@ -218,6 +226,7 @@ public final class ChatTextInputActionButtonsNode: ASDisplayNode, ChatSendMessag
             if let strongSelf = self {
                 if !strongSelf.sendButtonLongPressEnabled {
                     if highlighted {
+                        strongSelf.sendButtonGlassController.performTapAnimation(at: CGPoint(x: strongSelf.sendButton.bounds.midX, y: strongSelf.sendButton.bounds.midY))
                         strongSelf.sendContainerNode.layer.removeAnimation(forKey: "opacity")
                         strongSelf.sendContainerNode.alpha = 0.4
                     } else {
@@ -226,6 +235,7 @@ public final class ChatTextInputActionButtonsNode: ASDisplayNode, ChatSendMessag
                     }
                 } else {
                     if highlighted {
+                        strongSelf.sendButtonGlassController.performTapAnimation(at: CGPoint(x: strongSelf.sendButton.bounds.midX, y: strongSelf.sendButton.bounds.midY))
                         strongSelf.sendContainerNode.layer.animateScale(from: 1.0, to: 0.75, duration: 0.4, removeOnCompletion: false)
                     } else if let presentationLayer = strongSelf.sendContainerNode.layer.presentation() {
                         strongSelf.sendContainerNode.layer.animateScale(from: CGFloat((presentationLayer.value(forKeyPath: "transform.scale.y") as? NSNumber)?.floatValue ?? 1.0), to: 1.0, duration: 0.25, removeOnCompletion: false)
@@ -249,11 +259,18 @@ public final class ChatTextInputActionButtonsNode: ASDisplayNode, ChatSendMessag
                 return
             }
             if highlighted {
+                self.expandButtonGlassController.performTapAnimation(at: CGPoint(x: self.expandMediaInputButton.bounds.midX, y: self.expandMediaInputButton.bounds.midY))
                 self.expandMediaInputButton.layer.animateScale(from: 1.0, to: 0.75, duration: 0.4, removeOnCompletion: false)
             } else if let presentationLayer = self.expandMediaInputButton.layer.presentation() {
                 self.expandMediaInputButton.layer.animateScale(from: CGFloat((presentationLayer.value(forKeyPath: "transform.scale.y") as? NSNumber)?.floatValue ?? 1.0), to: 1.0, duration: 0.25, removeOnCompletion: false)
             }
         }
+        
+        self.micButton.addTarget(self, action: #selector(self.micButtonTouchDown), for: .touchDown)
+    }
+    
+    @objc private func micButtonTouchDown() {
+        self.micButtonGlassController.performTapAnimation(at: CGPoint(x: self.micButton.bounds.midX, y: self.micButton.bounds.midY))
     }
     
     override public func didLoad() {
