@@ -133,27 +133,28 @@ jobs:
           echo "=== Disk space AFTER build ==="
           df -h
 
-          # collect ipa with error checking
+          # collect app/ipa with error checking
           OUTPUT_PATH="build/artifacts"
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
           
-          # Check standard Bazel output location first
-          if [ -f "bazel-bin/Telegram/Telegram.ipa" ]; then
-            IPA_PATH="bazel-bin/Telegram/Telegram.ipa"
+          # Check for .app (Simulator) or .ipa (Device)
+          if [ -d "bazel-bin/Telegram/Telegram.app" ]; then
+            echo "Found Simulator build: Telegram.app"
+            # Zip the .app for distribution
+            cd bazel-bin/Telegram
+            zip -r "$SOURCE_DIR/$OUTPUT_PATH/Telegram.app.zip" Telegram.app
+            cd "$SOURCE_DIR"
+            echo "Packaged Telegram.app.zip"
+          elif [ -f "bazel-bin/Telegram/Telegram.ipa" ]; then
+            echo "Found Device build: Telegram.ipa"
+            cp "bazel-bin/Telegram/Telegram.ipa" "$OUTPUT_PATH/Telegram.ipa"
           else
-            # Fallback: search everywhere
-            IPA_PATH=$(find . -name "Telegram.ipa" -type f -not -path "*/.*" 2>/dev/null | head -n 1)
-          fi
-
-          if [ -z "$IPA_PATH" ]; then
-            echo "ERROR: Telegram.ipa not found"
-            echo "=== Contents of bazel-bin/ ==="
-            ls -R bazel-bin || echo "bazel-bin not found"
+            echo "ERROR: Neither Telegram.app nor Telegram.ipa found"
+            echo "=== Contents of bazel-bin/Telegram/ ==="
+            ls -la bazel-bin/Telegram/ || echo "bazel-bin/Telegram not found"
             exit 1
           fi
-          echo "Found IPA at: $IPA_PATH"
-          cp "$IPA_PATH" "$OUTPUT_PATH/Telegram.ipa"
 
           # collect dsym with error checking
           mkdir -p build/DSYMs
@@ -186,15 +187,15 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload Release IPA
-        id: upload-release-ipa 
+      - name: Upload Release App/IPA
+        id: upload-release-app
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa
-          asset_name: Telegram.ipa
+          asset_path: /Users/Shared/telegram-ios/build/artifacts/${{ hashFiles('/Users/Shared/telegram-ios/build/artifacts/Telegram.ipa') != '' && 'Telegram.ipa' || 'Telegram.app.zip' }}
+          asset_name: ${{ hashFiles('/Users/Shared/telegram-ios/build/artifacts/Telegram.ipa') != '' && 'Telegram.ipa' || 'Telegram.app.zip' }}
           asset_content_type: application/zip
 
       - name: Check dSYM existence
