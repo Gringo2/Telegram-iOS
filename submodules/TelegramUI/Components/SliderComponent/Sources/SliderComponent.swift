@@ -337,7 +337,6 @@ public final class SliderComponent: Component {
              
              // Center highlight on knob
              // Knob is usually centered on X, but Y is center of view.
-             let knobSize: CGFloat = 40.0 
              
              // Clamp to bounds? TGSlider usually clamps.
              
