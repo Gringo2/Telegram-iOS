@@ -127,7 +127,7 @@ jobs:
             build \
             --configurationPath="build-system/appstore-configuration.json" \
             --codesigningInformationPath=build-system/fake-codesigning \
-            --configuration=debug_arm64 \
+            --configuration=debug_sim_arm64 \
             --buildNumber="$BUILD_NUMBER"
 
           echo "=== Disk space AFTER build ==="
