@@ -5,7 +5,7 @@ import AsyncDisplayKit
 import TelegramPresentationData
 import LegacyComponents
 import ComponentFlow
-import LiquidGlass
+
 
 public final class SliderComponent: Component {
     public final class Discrete: Equatable {
@@ -129,7 +129,6 @@ public final class SliderComponent: Component {
         private var component: SliderComponent?
         private weak var state: EmptyComponentState?
         
-        private let glassController = GlassEffectController()
         
         public var hitTestTarget: UIView? {
             return self.sliderView
@@ -210,13 +209,6 @@ public final class SliderComponent: Component {
                         }
                         isTrackingUpdated(isTracking)
                         
-                        // Glass Effect Hook
-                        if isTracking {
-                            // Scale Up
-                            self?.glassController.performTapAnimation(at: CGPoint(x: 20, y: 20)) // Center of knob (approx)
-                        } else {
-                            // Bounce Back
-                        }
                     }
                 }
                 
@@ -282,9 +274,6 @@ public final class SliderComponent: Component {
                     self.sliderView = sliderView
                     self.addSubview(sliderView)
                     
-                    // Glass Layer
-                    sliderView.layer.addSublayer(self.glassController.highlightLayer)
-                    self.glassController.highlightLayer.frame = CGRect(x: 0, y: 0, width: 40, height: 40) // Default knob size
                 }
                 sliderView.lowerBoundTrackColor = component.minTrackForegroundColor
                 switch component.content {
@@ -314,40 +303,11 @@ public final class SliderComponent: Component {
                 sliderView.hitTestEdgeInsets = UIEdgeInsets(top: 0.0, left: 0.0, bottom: 0.0, right: 0.0)
             }
             
-            self.updateGlassPosition()
             return size
         }
         
-        private func updateGlassPosition() {
-             guard let sliderView = self.sliderView else { return }
-             let value = sliderView.value
-             let min = sliderView.minimumValue
-             let max = sliderView.maximumValue
-             let range = max - min
-             guard range > 0 else { return }
-             
-             let clampedValue = Swift.max(Swift.min(value, max), min)
-             let relativeValue = CGFloat(clampedValue - min) / CGFloat(range)
-             
-             // Approximate knob position calculation
-             // TGPhotoEditorSliderView typically insets track by dotSize/2 or lineSize/2
-             // Let's assume standard behavior:
-             let trackWidth = sliderView.bounds.width
-             let knobX = relativeValue * trackWidth
-             
-             // Center highlight on knob
-             // Knob is usually centered on X, but Y is center of view.
-             
-             // Clamp to bounds? TGSlider usually clamps.
-             
-             CATransaction.begin()
-             CATransaction.setDisableActions(true)
-             self.glassController.highlightLayer.position = CGPoint(x: knobX, y: sliderView.bounds.midY)
-             CATransaction.commit()
-        }
         
         @objc private func sliderValueChanged() {
-            self.updateGlassPosition()
             guard let component = self.component else {
                 return
             }
