@@ -138,31 +138,33 @@ jobs:
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
           
-          echo "=== DEBUG: Current directory ==="
-          pwd
-          echo "=== DEBUG: Checking bazel-bin/Telegram/ ==="
-          ls -la bazel-bin/Telegram/ || echo "bazel-bin/Telegram not found"
+          # collect app/ipa with error checking
+          OUTPUT_PATH="build/artifacts"
+          rm -rf "$OUTPUT_PATH"
+          mkdir -p "$OUTPUT_PATH"
+          
+          # Get absolute path for output to avoid symlink confusion
+          # We are in the repo root here
+          REPO_ROOT=$(pwd)
+          ABSOLUTE_OUTPUT_PATH="$REPO_ROOT/$OUTPUT_PATH"
+          
+          echo "=== DEBUG info ==="
+          echo "Repo root: $REPO_ROOT"
+          echo "Output: $ABSOLUTE_OUTPUT_PATH"
           
           # Check for .app (Simulator) or .ipa (Device)
           if [ -d "bazel-bin/Telegram/Telegram.app" ]; then
             echo "✓ Found Simulator build: Telegram.app"
-            echo "=== DEBUG: Telegram.app contents ==="
-            ls -la bazel-bin/Telegram/Telegram.app/ | head -20
             
-            # Zip the .app for distribution  
-            echo "=== DEBUG: Creating zip file ==="
-            (cd bazel-bin/Telegram && zip -r -v ../../build/artifacts/Telegram.app.zip Telegram.app) || echo "Zip command failed with exit code $?"
-            
-            echo "=== DEBUG: Checking if zip was created ==="
-            ls -lh "$OUTPUT_PATH/" || echo "Output path doesn't exist"
+            # Zip the .app for distribution using absolute output path
+            # bazel-bin is a symlink, so we must use absolute path for the target zip
+            (cd bazel-bin/Telegram && zip -r -v "$ABSOLUTE_OUTPUT_PATH/Telegram.app.zip" Telegram.app)
             
             if [ -f "$OUTPUT_PATH/Telegram.app.zip" ]; then
               echo "✓ Successfully packaged Telegram.app.zip"
               ls -lh "$OUTPUT_PATH/Telegram.app.zip"
             else
               echo "✗ ERROR: Failed to create Telegram.app.zip"
-              echo "=== DEBUG: Full artifacts directory listing ==="
-              find build -type f || echo "No build directory"
               exit 1
             fi
           elif [ -f "bazel-bin/Telegram/Telegram.ipa" ]; then
@@ -170,8 +172,7 @@ jobs:
             cp "bazel-bin/Telegram/Telegram.ipa" "$OUTPUT_PATH/Telegram.ipa"
           else
             echo "✗ ERROR: Neither Telegram.app nor Telegram.ipa found"
-            echo "=== Contents of bazel-bin/Telegram/ ==="
-            ls -la bazel-bin/Telegram/ || echo "bazel-bin/Telegram not found"
+            ls -la bazel-bin/Telegram/
             exit 1
           fi
 
@@ -188,7 +189,7 @@ jobs:
           echo "Collected $DSYM_COUNT dSYM files"
           
           if [ $DSYM_COUNT -gt 0 ]; then
-            zip -r "./$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs 1>/dev/null
+            zip -r "$ABSOLUTE_OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs 1>/dev/null
           else
             echo "WARNING: No dSYM files found (non-fatal)"
           fi
