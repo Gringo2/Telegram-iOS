@@ -72,6 +72,7 @@ jobs:
             bazel-disk-cache-${{ runner.os }}-
 
       - name: Build the App
+        id: build_app
         run: |
           set -x
 
@@ -152,17 +153,17 @@ jobs:
           echo "Repo root: $REPO_ROOT"
           echo "Output: $ABSOLUTE_OUTPUT_PATH"
           
-          # Check for .app (Simulator) or .ipa (Device)
           if [ -d "bazel-bin/Telegram/Telegram.app" ]; then
             echo "✓ Found Simulator build: Telegram.app"
             
             # Zip the .app for distribution using absolute output path
-            # bazel-bin is a symlink, so we must use absolute path for the target zip
             (cd bazel-bin/Telegram && zip -r -v "$ABSOLUTE_OUTPUT_PATH/Telegram.app.zip" Telegram.app)
             
             if [ -f "$OUTPUT_PATH/Telegram.app.zip" ]; then
               echo "✓ Successfully packaged Telegram.app.zip"
               ls -lh "$OUTPUT_PATH/Telegram.app.zip"
+              echo "artifact_name=Telegram.app.zip" >> $GITHUB_OUTPUT
+              echo "artifact_path=$ABSOLUTE_OUTPUT_PATH/Telegram.app.zip" >> $GITHUB_OUTPUT
             else
               echo "✗ ERROR: Failed to create Telegram.app.zip"
               exit 1
@@ -170,6 +171,8 @@ jobs:
           elif [ -f "bazel-bin/Telegram/Telegram.ipa" ]; then
             echo "✓ Found Device build: Telegram.ipa"
             cp "bazel-bin/Telegram/Telegram.ipa" "$OUTPUT_PATH/Telegram.ipa"
+            echo "artifact_name=Telegram.ipa" >> $GITHUB_OUTPUT
+            echo "artifact_path=$ABSOLUTE_OUTPUT_PATH/Telegram.ipa" >> $GITHUB_OUTPUT
           else
             echo "✗ ERROR: Neither Telegram.app nor Telegram.ipa found"
             ls -la bazel-bin/Telegram/
@@ -214,8 +217,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /Users/Shared/telegram-ios/build/artifacts/${{ hashFiles('/Users/Shared/telegram-ios/build/artifacts/Telegram.ipa') != '' && 'Telegram.ipa' || 'Telegram.app.zip' }}
-          asset_name: ${{ hashFiles('/Users/Shared/telegram-ios/build/artifacts/Telegram.ipa') != '' && 'Telegram.ipa' || 'Telegram.app.zip' }}
+          asset_path: ${{ steps.build_app.outputs.artifact_path }}
+          asset_name: ${{ steps.build_app.outputs.artifact_name }}
           asset_content_type: application/zip
 
       - name: Check dSYM existence
