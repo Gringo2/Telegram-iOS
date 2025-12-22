@@ -142,10 +142,14 @@ jobs:
           if [ -d "bazel-bin/Telegram/Telegram.app" ]; then
             echo "Found Simulator build: Telegram.app"
             # Zip the .app for distribution
-            cd bazel-bin/Telegram
-            zip -r "$SOURCE_DIR/$OUTPUT_PATH/Telegram.app.zip" Telegram.app
-            cd "$SOURCE_DIR"
-            echo "Packaged Telegram.app.zip"
+            (cd bazel-bin/Telegram && zip -r ../../build/artifacts/Telegram.app.zip Telegram.app)
+            if [ -f "$OUTPUT_PATH/Telegram.app.zip" ]; then
+              echo "Successfully packaged Telegram.app.zip"
+              ls -lh "$OUTPUT_PATH/Telegram.app.zip"
+            else
+              echo "ERROR: Failed to create Telegram.app.zip"
+              exit 1
+            fi
           elif [ -f "bazel-bin/Telegram/Telegram.ipa" ]; then
             echo "Found Device build: Telegram.ipa"
             cp "bazel-bin/Telegram/Telegram.ipa" "$OUTPUT_PATH/Telegram.ipa"
