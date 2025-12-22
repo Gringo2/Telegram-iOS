@@ -138,23 +138,38 @@ jobs:
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
           
+          echo "=== DEBUG: Current directory ==="
+          pwd
+          echo "=== DEBUG: Checking bazel-bin/Telegram/ ==="
+          ls -la bazel-bin/Telegram/ || echo "bazel-bin/Telegram not found"
+          
           # Check for .app (Simulator) or .ipa (Device)
           if [ -d "bazel-bin/Telegram/Telegram.app" ]; then
-            echo "Found Simulator build: Telegram.app"
-            # Zip the .app for distribution
-            (cd bazel-bin/Telegram && zip -r ../../build/artifacts/Telegram.app.zip Telegram.app)
+            echo "✓ Found Simulator build: Telegram.app"
+            echo "=== DEBUG: Telegram.app contents ==="
+            ls -la bazel-bin/Telegram/Telegram.app/ | head -20
+            
+            # Zip the .app for distribution  
+            echo "=== DEBUG: Creating zip file ==="
+            (cd bazel-bin/Telegram && zip -r -v ../../build/artifacts/Telegram.app.zip Telegram.app) || echo "Zip command failed with exit code $?"
+            
+            echo "=== DEBUG: Checking if zip was created ==="
+            ls -lh "$OUTPUT_PATH/" || echo "Output path doesn't exist"
+            
             if [ -f "$OUTPUT_PATH/Telegram.app.zip" ]; then
-              echo "Successfully packaged Telegram.app.zip"
+              echo "✓ Successfully packaged Telegram.app.zip"
               ls -lh "$OUTPUT_PATH/Telegram.app.zip"
             else
-              echo "ERROR: Failed to create Telegram.app.zip"
+              echo "✗ ERROR: Failed to create Telegram.app.zip"
+              echo "=== DEBUG: Full artifacts directory listing ==="
+              find build -type f || echo "No build directory"
               exit 1
             fi
           elif [ -f "bazel-bin/Telegram/Telegram.ipa" ]; then
-            echo "Found Device build: Telegram.ipa"
+            echo "✓ Found Device build: Telegram.ipa"
             cp "bazel-bin/Telegram/Telegram.ipa" "$OUTPUT_PATH/Telegram.ipa"
           else
-            echo "ERROR: Neither Telegram.app nor Telegram.ipa found"
+            echo "✗ ERROR: Neither Telegram.app nor Telegram.ipa found"
             echo "=== Contents of bazel-bin/Telegram/ ==="
             ls -la bazel-bin/Telegram/ || echo "bazel-bin/Telegram not found"
             exit 1
