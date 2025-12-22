@@ -1,0 +1,19 @@
+﻿d5e74296f1|Fix: Verify Info.plist and Bundle ID in artifact
+50aeae2041|Fix: Extract simulator .app from IPA
+b8f16aae24|Fix artifact upload logic using outputs
+17068a2f3c|FIX: Simulator artifact generation
+c947faad07|Debug: Add extensive logging for artifact creation
+fa9bce651a|Fix: Use relative paths for zip command
+a1e84fbe78|Fix: Collect and upload .app for Simulator builds
+21201b2663|Reality check: Revert to Simulator build
+7ebcc0fccb|Add flag to disable provisioning profiles for device build
+8867d2d756|Revert to Simulator build - device builds need real certificates
+02c657d3a1|Fix: Use debug_arm64 to avoid strict code signing
+864b044198|Fix: Use correct build configuration release_arm64
+61265faa92|Fix: Build for Device instead of Simulator
+105ab72a84|Fix crash: Remove assert() that fails in release builds
+0263a82868|Phase 0: Add tap highlight and tune spring parameters for tab bar
+e716a77666|ci: enable bazel disk caching
+640f9f72a4|build: enable dSYMs for simulator and correct provisioning profile paths
+a29cca3ec7|chore: optimize repository configuration (xcode version, submodules, ignores)
+5964c59fff|ci: enhance pipeline with macos-latest, timeouts, and robustness improvements

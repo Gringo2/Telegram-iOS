@@ -1,8 +1,8 @@
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
 
 swift_library(
-    name = "LiquidLens",
-    module_name = "LiquidLens",
+    name = "LiquidGlass",
+    module_name = "LiquidGlass",
     srcs = glob([
         "Sources/**/*.swift",
     ]),
@@ -10,10 +10,9 @@ swift_library(
         "-warnings-as-errors",
     ],
     deps = [
-        "//submodules/Display",
-        "//submodules/ComponentFlow",
-        "//submodules/TelegramUI/Components/GlassBackgroundComponent",
-        "//submodules/LiquidGlass",
+        "//submodules/Display:Display",
+        "//submodules/AsyncDisplayKit:AsyncDisplayKit",
+        "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
     ],
     visibility = [
         "//visibility:public",

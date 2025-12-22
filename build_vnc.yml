@@ -1,0 +1,232 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 300  # 5 hours (buffer before 6hr GitHub Actions limit)
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: '0'
+
+      - name: Set active Xcode path
+        run: |
+          XCODE_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["xcode"]);')
+          
+          # Try exact match first
+          if [ -d "/Applications/Xcode_$XCODE_VERSION.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
+          # Try beta suffix
+          elif [ -d "/Applications/Xcode_${XCODE_VERSION}_beta.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_${XCODE_VERSION}_beta.app/Contents/Developer
+          # Try without minor version
+          elif [ -d "/Applications/Xcode_${XCODE_VERSION%%.*}.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_${XCODE_VERSION%%.*}.app/Contents/Developer
+          else
+            echo "ERROR: Xcode $XCODE_VERSION not found"
+            ls -la /Applications/ | grep Xcode
+            exit 1
+          fi
+          
+          xcodebuild -version
+
+      - name: Free up disk space
+        run: |
+          echo "=== Disk space BEFORE cleanup ==="
+          df -h
+          
+          # Remove unnecessary Xcode versions to free ~5-8GB
+          sudo rm -rf /Applications/Xcode_15*.app || true
+          sudo rm -rf /Applications/Xcode_14*.app || true
+          
+          # Remove Android SDK if present
+          sudo rm -rf ~/Library/Android || true
+          
+          # Clean Homebrew taps
+          sudo rm -rf /usr/local/Homebrew/Library/Taps || true
+          
+          echo "=== Disk space AFTER cleanup ==="
+          df -h
+
+      - name: Create canonical source directory
+        run: |
+          set -x
+          sudo mkdir -p /Users/Shared
+          cp -R $GITHUB_WORKSPACE /Users/Shared/
+          mv /Users/Shared/$(basename $GITHUB_WORKSPACE) /Users/Shared/telegram-ios
+
+      - name: Build the App
+        run: |
+          set -x
+
+          # source code paths are included in the final binary, so we need to make them stable across builds
+          SOURCE_DIR=/Users/Shared/telegram-ios
+
+          # use canonical bazel root
+          BAZEL_USER_ROOT="/private/var/tmp/_bazel_containerhost"
+
+          cd $SOURCE_DIR
+
+          BUILD_NUMBER_OFFSET="$(cat build_number_offset)"
+
+          export APP_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["app"]);')
+          export COMMIT_COUNT=$(git rev-list --count HEAD)
+          export COMMIT_COUNT="$(($COMMIT_COUNT+$BUILD_NUMBER_OFFSET))"
+          export BUILD_NUMBER="$COMMIT_COUNT"
+          echo "BUILD_NUMBER=$(echo $BUILD_NUMBER)" >> $GITHUB_ENV
+          echo "APP_VERSION=$(echo $APP_VERSION)" >> $GITHUB_ENV
+
+          echo "=== Disk space BEFORE build ==="
+          df -h
+
+          # Regenerate provisioning profiles to fix expiration date (Oct 2025 -> Oct 2035)
+          # We do this on the runner because we need openssl and the repo's self-signed cert
+          echo "Regenerating provisioning profiles..."
+          CERTS_DIR="build-system/fake-codesigning/certs"
+          PROFILES_DIR="build-system/fake-codesigning/profiles"
+          KEY_FILE="temp_key.pem"
+          CERT_FILE="temp_cert.pem"
+
+          # Extract key and cert from p12 (password is empty)
+          openssl pkcs12 -in "$CERTS_DIR/SelfSigned.p12" -nocerts -nodes -out "$KEY_FILE" -passin pass:
+          openssl pkcs12 -in "$CERTS_DIR/SelfSigned.p12" -clcerts -nokeys -out "$CERT_FILE" -passin pass:
+
+          for profile in "$PROFILES_DIR"/*.mobileprovision; do
+            # Extract plist content
+            openssl smime -verify -noverify -in "$profile" -inform DER -out "temp.plist" 2>/dev/null || true
+            
+            # Update date: 2025 -> 2035
+            sed -i '' 's/2025-/2035-/g' temp.plist
+            
+            # Re-sign
+            openssl smime -sign -in temp.plist -out "$profile" -outform DER -inkey "$KEY_FILE" -signer "$CERT_FILE" -nodetach
+            echo "Regenerated $(basename "$profile")"
+          done
+          rm -f "$KEY_FILE" "$CERT_FILE" "temp.plist"
+
+          python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
+          python3 -u build-system/Make/Make.py \
+            --bazelUserRoot="$BAZEL_USER_ROOT" \
+            build \
+            --configurationPath="build-system/appstore-configuration.json" \
+            --codesigningInformationPath=build-system/fake-codesigning \
+            --configuration=debug_sim_arm64 \
+            --buildNumber="$BUILD_NUMBER"
+
+          echo "=== Disk space AFTER build ==="
+          df -h
+
+          # collect .app bundle for Simulator (extract from IPA)
+          OUTPUT_PATH="build/artifacts"
+          rm -rf "$OUTPUT_PATH"
+          mkdir -p "$OUTPUT_PATH"
+          
+          # Check standard Bazel output location for IPA
+          if [ -f "bazel-bin/Telegram/Telegram.ipa" ]; then
+            IPA_PATH="bazel-bin/Telegram/Telegram.ipa"
+          else
+            # Fallback: search everywhere
+            IPA_PATH=$(find . -name "Telegram.ipa" -type f -not -path "*/.*" 2>/dev/null | head -n 1)
+          fi
+
+          if [ -z "$IPA_PATH" ]; then
+            echo "ERROR: Telegram.ipa not found (cannot extract .app)"
+            echo "=== Contents of bazel-bin/ ==="
+            ls -R bazel-bin || echo "bazel-bin not found"
+            exit 1
+          fi
+          echo "Found IPA at: $IPA_PATH"
+          
+          # Unzip IPA to get the .app bundle
+          echo "Extracting .app from IPA..."
+          mkdir -p build/temp_ipa_extract
+          unzip -q "$IPA_PATH" -d build/temp_ipa_extract
+          
+          APP_PATH="build/temp_ipa_extract/Payload/Telegram.app"
+          
+          if [ ! -d "$APP_PATH" ]; then
+             echo "ERROR: Telegram.app not found in IPA Payload"
+             ls -R build/temp_ipa_extract
+             exit 1
+          fi
+          
+          # Zip the .app for upload
+          # We are currently in SOURCE_DIR (/Users/Shared/telegram-ios)
+          ABSOLUTE_OUTPUT_PATH="$(pwd)/$OUTPUT_PATH"
+          
+          cd build/temp_ipa_extract/Payload
+          zip -r "$ABSOLUTE_OUTPUT_PATH/Telegram.app.zip" "Telegram.app"
+          cd $GITHUB_WORKSPACE
+
+          echo "Prepared Telegram.app.zip"
+
+          # collect dsym with error checking
+          mkdir -p build/DSYMs
+          DSYM_COUNT=0
+          
+          # Search for dSYMs in bazel-bin first
+          for f in $(find bazel-bin -name "*.dSYM" -type d 2>/dev/null); do
+            cp -R "$f" build/DSYMs/
+            DSYM_COUNT=$((DSYM_COUNT + 1))
+          done
+          
+          echo "Collected $DSYM_COUNT dSYM files"
+          
+          if [ $DSYM_COUNT -gt 0 ]; then
+            zip -r "./$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs 1>/dev/null
+          else
+            echo "WARNING: No dSYM files found (non-fatal)"
+          fi
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: build-${{ env.BUILD_NUMBER }}
+          release_name: Telegram ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
+          body: |
+            An unsigned build of Telegram for iOS ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
+          draft: false
+          prerelease: false
+
+      - name: Upload Release IPA
+        id: upload-release-ipa 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /Users/Shared/telegram-ios/build/artifacts/Telegram.app.zip
+          asset_name: Telegram.app.zip
+          asset_content_type: application/zip
+
+      - name: Check dSYM existence
+        id: check_dsyms
+        run: |
+          if [ -f "/Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload Release DSYM
+        if: steps.check_dsyms.outputs.exists == 'true'
+        id: upload-release-dsym 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip
+          asset_name: Telegram.DSYMs.zip
+          asset_content_type: application/zip
