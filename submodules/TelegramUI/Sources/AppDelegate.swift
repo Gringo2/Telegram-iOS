@@ -923,6 +923,21 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         let accountManager = AccountManager<TelegramAccountManagerTypes>(basePath: rootPath + "/accounts-metadata", isTemporary: false, isReadOnly: false, useCaches: true, removeDatabaseOnError: true)
         self.accountManager = accountManager
 
+        if MockAuth.enabled {
+            if accountManager._internalAccountRecordsSync().records.isEmpty {
+                let id = generateAccountRecordId()
+                let path = rootPath + "/" + accountRecordIdPathName(id)
+                let _ = try? FileManager.default.createDirectory(atPath: path + "/postbox", withIntermediateDirectories: true, attributes: nil)
+                
+                let _ = accountManager.transaction { transaction in
+                    transaction.setCurrentId(id)
+                    transaction.updateRecord(id, { _ in
+                        return AccountRecord(id: id, attributes: [.environment(AccountEnvironmentAttribute(environment: .production))], temporarySessionId: nil)
+                    })
+                }.start()
+            }
+        }
+
         telegramUIDeclareEncodables()
         initializeAccountManagement()
         
@@ -983,6 +998,17 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                     }
                 }
             }, appDelegate: self)
+
+            if MockAuth.enabled {
+                let banner = UILabel()
+                banner.text = "🧪 MOCK AUTH MODE"
+                banner.backgroundColor = UIColor.red.withAlphaComponent(0.8)
+                banner.textColor = UIColor.white
+                banner.font = UIFont.boldSystemFont(ofSize: 10.0)
+                banner.textAlignment = .center
+                banner.frame = CGRect(x: 0.0, y: 0.0, width: self.mainWindow.bounds.width, height: 20.0)
+                self.mainWindow.addSubview(banner)
+            }
             
             presentationDataPromise.set(sharedContext.presentationData)
             
