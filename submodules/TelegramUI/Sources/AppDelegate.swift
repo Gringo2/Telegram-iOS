@@ -932,7 +932,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 let _ = accountManager.transaction { transaction in
                     transaction.setCurrentId(id)
                     transaction.updateRecord(id, { _ in
-                        return AccountRecord(id: id, attributes: [.environment(AccountEnvironmentAttribute(environment: .production))], temporarySessionId: nil)
+                        return AccountRecord<TelegramAccountRecordAttribute>(id: id, attributes: [.environment(AccountEnvironmentAttribute(environment: .production))], temporarySessionId: nil)
                     })
                 }.start()
             }
@@ -1006,8 +1006,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 banner.textColor = UIColor.white
                 banner.font = UIFont.boldSystemFont(ofSize: 10.0)
                 banner.textAlignment = .center
-                banner.frame = CGRect(x: 0.0, y: 0.0, width: self.mainWindow.bounds.width, height: 20.0)
-                self.mainWindow.addSubview(banner)
+                banner.frame = CGRect(x: 0.0, y: 0.0, width: self.mainWindow.hostView.containerView.bounds.width, height: 20.0)
+                self.mainWindow.hostView.containerView.addSubview(banner)
             }
             
             presentationDataPromise.set(sharedContext.presentationData)
