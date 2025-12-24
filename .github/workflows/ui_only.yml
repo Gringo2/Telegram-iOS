@@ -69,6 +69,7 @@ jobs:
           set -x
           SOURCE_DIR=/Users/Shared/telegram-ios
           BAZEL_USER_ROOT="/private/var/tmp/_bazel_containerhost"
+          
           cd $SOURCE_DIR
 
           BUILD_NUMBER_OFFSET="$(cat build_number_offset)"
@@ -76,10 +77,8 @@ jobs:
           export COMMIT_COUNT=$(git rev-list --count HEAD)
           export COMMIT_COUNT="$(($COMMIT_COUNT+$BUILD_NUMBER_OFFSET))"
           export BUILD_NUMBER="$COMMIT_COUNT"
-          echo "BUILD_NUMBER=$(echo $BUILD_NUMBER)" >> $GITHUB_ENV
-          echo "APP_VERSION=$(echo $APP_VERSION)" >> $GITHUB_ENV
 
-          # Regenerate provisioning profiles (if needed for build system consistency)
+          # Regenerate provisioning profiles
           echo "Regenerating provisioning profiles..."
           CERTS_DIR="build-system/fake-codesigning/certs"
           PROFILES_DIR="build-system/fake-codesigning/profiles"
@@ -96,20 +95,17 @@ jobs:
 
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           
-          # Run Bazel Build with UI_ONLY config and Simulator flags
-          /usr/local/bin/bazel build \
-            --config=ui_only \
-            -c dbg \
-            --ios_multi_cpus=sim_arm64 \
-            --watchos_cpus=arm64_32 \
-            --features=swift.use_global_module_cache \
-            --features=swift.enable_batch_mode \
-            --verbose_failures \
-            --define=buildNumber="$BUILD_NUMBER" \
-            --define=telegramVersion="$APP_VERSION" \
-            //Telegram:Telegram
+          # Use Make.py for absolute parity, injecting --config=ui_only
+          python3 -u build-system/Make/Make.py \
+            --bazelArguments="--config=ui_only" \
+            --bazelUserRoot="$BAZEL_USER_ROOT" \
+            build \
+            --configurationPath="build-system/appstore-configuration.json" \
+            --codesigningInformationPath=build-system/fake-codesigning \
+            --configuration=debug_sim_arm64 \
+            --buildNumber="$BUILD_NUMBER"
 
-          # collect app/ipa
+          # Artifact extraction logic synced from build.yml
           OUTPUT_PATH="build/artifacts"
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"

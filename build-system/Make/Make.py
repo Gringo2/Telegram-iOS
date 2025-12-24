@@ -262,6 +262,9 @@ class BazelCommandLine:
                 '--features=swift.split_derived_files_generation',
             ]
 
+        if self.additional_args is not None:
+            combined_arguments += shlex.split(self.additional_args)
+
         return combined_arguments
 
     def invoke_build(self):
@@ -632,6 +635,9 @@ def build(bazel, arguments):
     bazel_command_line.set_enable_sandbox(arguments.sandbox)
 
     bazel_command_line.set_split_swiftmodules(arguments.enableParallelSwiftmoduleGeneration)
+
+    if arguments.bazelArguments is not None:
+        bazel_command_line.add_additional_args(arguments.bazelArguments)
 
     bazel_command_line.invoke_build()
 
