@@ -32,6 +32,55 @@ jobs:
         run: |
           cd /Users/Shared/telegram-ios
           
-          # Run the UI-only build configuration
-          # This uses the specific bazel config we added to .bazelrc
-          /usr/local/bin/bazel build --config=ui_only //Telegram:Telegram
+          # Robust Bazel command for Simulator build
+          # Includes flags from Make.py (debug_sim_arm64) plus our ui_only config
+          /usr/local/bin/bazel build \
+            --config=ui_only \
+            -c dbg \
+            --ios_multi_cpus=sim_arm64 \
+            --watchos_cpus=arm64_32 \
+            --features=swift.use_global_module_cache \
+            --features=swift.enable_batch_mode \
+            --verbose_failures \
+            //Telegram:Telegram
+
+      - name: Package Simulator Bundle
+        run: |
+          cd /Users/Shared/telegram-ios
+          
+          OUTPUT_PATH="build/artifacts"
+          rm -rf "$OUTPUT_PATH"
+          mkdir -p "$OUTPUT_PATH"
+          
+          # Find the built IPA
+          IPA_PATH="bazel-bin/Telegram/Telegram.ipa"
+          if [ ! -f "$IPA_PATH" ]; then
+             IPA_PATH=$(find bazel-bin -name "Telegram.ipa" -type f | head -n 1)
+          fi
+          
+          if [ ! -f "$IPA_PATH" ]; then
+            echo "ERROR: Telegram.ipa not found."
+            exit 1
+          fi
+          
+          echo "Found IPA at: $IPA_PATH"
+          
+          # Extract .app for Simulator use
+          mkdir -p build/temp_extract
+          unzip -q "$IPA_PATH" -d build/temp_extract
+          
+          APP_PATH="build/temp_extract/Payload/Telegram.app"
+          if [ ! -d "$APP_PATH" ]; then
+             echo "ERROR: Telegram.app not found in IPA Payload."
+             exit 1
+          fi
+          
+          # Zip .app for upload (preserves permissions/symlinks)
+          cd build/temp_extract/Payload
+          zip -r "$GITHUB_WORKSPACE/Telegram.ui_only.app.zip" "Telegram.app"
+          
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Telegram-UI-Only-App
+          path: Telegram.ui_only.app.zip
