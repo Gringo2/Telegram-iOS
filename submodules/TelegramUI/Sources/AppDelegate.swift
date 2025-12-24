@@ -330,6 +330,46 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         
         let launchStartTime = CFAbsoluteTimeGetCurrent()
         
+#if TELEGRAM_UI_ONLY
+        let (window, hostView) = nativeWindowHostView()
+        let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
+        let mainWindow = Window1(hostView: hostView, statusBarHost: statusBarHost)
+        self.window = window
+        self.nativeWindow = window
+        self.mainWindow = mainWindow
+        
+        let navigationBarTheme = NavigationBarTheme(
+            buttonColor: .black,
+            disabledButtonColor: .lightGray,
+            primaryTextColor: .black,
+            backgroundColor: .white,
+            opaqueBackgroundColor: .white,
+            enableBackgroundBlur: true,
+            separatorColor: .lightGray,
+            badgeBackgroundColor: .red,
+            badgeStrokeColor: .white,
+            badgeTextColor: .white
+        )
+        
+        let navigationTheme = NavigationControllerTheme(
+            statusBar: .black,
+            navigationBar: navigationBarTheme,
+            emptyAreaColor: .black
+        )
+        
+        let navigationController = NavigationController(
+            mode: .single,
+            theme: navigationTheme
+        )
+        
+        navigationController.pushViewController(MockTelegramRootController(navigationBarPresentationData: nil), animated: false)
+        
+        mainWindow.hostView.contentView.addSubview(navigationController.view)
+        
+        window.makeKeyAndVisible()
+        return true
+#endif
+        
         let (window, hostView) = nativeWindowHostView()
         let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
         self.mainWindow = Window1(hostView: hostView, statusBarHost: statusBarHost)

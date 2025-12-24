@@ -28,3 +28,6 @@ common:index_build --nolegacy_important_outputs
 common:index_build --show_result=0
 common:index_build --define=buildNumber=10000
 common:index_build --define=telegramVersion=12.2.2
+
+# UI-Only Mode (Simulator Only)
+build:ui_only --swiftcopt=-DTELEGRAM_UI_ONLY
