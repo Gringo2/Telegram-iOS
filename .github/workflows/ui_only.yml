@@ -8,10 +8,11 @@ on:
 
 jobs:
   build_ui_only:
-    runs-on: macos-13
+    runs-on: macos-latest
+    timeout-minutes: 300
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
           fetch-depth: '0'
@@ -19,7 +20,41 @@ jobs:
       - name: Set active Xcode path
         run: |
           XCODE_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["xcode"]);')
-          sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
+          
+          # Try exact match first
+          if [ -d "/Applications/Xcode_$XCODE_VERSION.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
+          # Try beta suffix
+          elif [ -d "/Applications/Xcode_${XCODE_VERSION}_beta.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_${XCODE_VERSION}_beta.app/Contents/Developer
+          # Try without minor version
+          elif [ -d "/Applications/Xcode_${XCODE_VERSION%%.*}.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_${XCODE_VERSION%%.*}.app/Contents/Developer
+          else
+            echo "ERROR: Xcode $XCODE_VERSION not found"
+            ls -la /Applications/ | grep Xcode
+            exit 1
+          fi
+          
+          xcodebuild -version
+
+      - name: Free up disk space
+        run: |
+          echo "=== Disk space BEFORE cleanup ==="
+          df -h
+          
+          # Remove unnecessary Xcode versions to free ~5-8GB
+          sudo rm -rf /Applications/Xcode_15*.app || true
+          sudo rm -rf /Applications/Xcode_14*.app || true
+          
+          # Remove Android SDK if present
+          sudo rm -rf ~/Library/Android || true
+          
+          # Clean Homebrew taps
+          sudo rm -rf /usr/local/Homebrew/Library/Taps || true
+          
+          echo "=== Disk space AFTER cleanup ==="
+          df -h
 
       - name: Create canonical source directory
         run: |
@@ -29,11 +64,39 @@ jobs:
           mv /Users/Shared/$(basename $GITHUB_WORKSPACE) /Users/Shared/telegram-ios
 
       - name: Build UI Only Mode
+        id: build_app
         run: |
-          cd /Users/Shared/telegram-ios
+          set -x
+          SOURCE_DIR=/Users/Shared/telegram-ios
+          BAZEL_USER_ROOT="/private/var/tmp/_bazel_containerhost"
+          cd $SOURCE_DIR
+
+          BUILD_NUMBER_OFFSET="$(cat build_number_offset)"
+          export APP_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["app"]);')
+          export COMMIT_COUNT=$(git rev-list --count HEAD)
+          export COMMIT_COUNT="$(($COMMIT_COUNT+$BUILD_NUMBER_OFFSET))"
+          export BUILD_NUMBER="$COMMIT_COUNT"
+          echo "BUILD_NUMBER=$(echo $BUILD_NUMBER)" >> $GITHUB_ENV
+          echo "APP_VERSION=$(echo $APP_VERSION)" >> $GITHUB_ENV
+
+          # Regenerate provisioning profiles (if needed for build system consistency)
+          echo "Regenerating provisioning profiles..."
+          CERTS_DIR="build-system/fake-codesigning/certs"
+          PROFILES_DIR="build-system/fake-codesigning/profiles"
+          KEY_FILE="temp_key.pem"
+          CERT_FILE="temp_cert.pem"
+          openssl pkcs12 -in "$CERTS_DIR/SelfSigned.p12" -nocerts -nodes -out "$KEY_FILE" -passin pass:
+          openssl pkcs12 -in "$CERTS_DIR/SelfSigned.p12" -clcerts -nokeys -out "$CERT_FILE" -passin pass:
+          for profile in "$PROFILES_DIR"/*.mobileprovision; do
+            openssl smime -verify -noverify -in "$profile" -inform DER -out "temp.plist" 2>/dev/null || true
+            sed -i '' 's/2025-/2035-/g' temp.plist
+            openssl smime -sign -in temp.plist -out "$profile" -outform DER -inkey "$KEY_FILE" -signer "$CERT_FILE" -nodetach
+          done
+          rm -f "$KEY_FILE" "$CERT_FILE" "temp.plist"
+
+          python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           
-          # Robust Bazel command for Simulator build
-          # Includes flags from Make.py (debug_sim_arm64) plus our ui_only config
+          # Run Bazel Build with UI_ONLY config and Simulator flags
           /usr/local/bin/bazel build \
             --config=ui_only \
             -c dbg \
@@ -42,45 +105,32 @@ jobs:
             --features=swift.use_global_module_cache \
             --features=swift.enable_batch_mode \
             --verbose_failures \
+            --define=buildNumber="$BUILD_NUMBER" \
+            --define=telegramVersion="$APP_VERSION" \
             //Telegram:Telegram
 
-      - name: Package Simulator Bundle
-        run: |
-          cd /Users/Shared/telegram-ios
-          
+          # collect app/ipa
           OUTPUT_PATH="build/artifacts"
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
+          REPO_ROOT=$(pwd)
+          ABSOLUTE_OUTPUT_PATH="$REPO_ROOT/$OUTPUT_PATH"
           
-          # Find the built IPA
-          IPA_PATH="bazel-bin/Telegram/Telegram.ipa"
-          if [ ! -f "$IPA_PATH" ]; then
-             IPA_PATH=$(find bazel-bin -name "Telegram.ipa" -type f | head -n 1)
+          if [ -f "bazel-bin/Telegram/Telegram.ipa" ]; then
+            echo "✓ Found Build Artifact: Telegram.ipa"
+            echo "Extracting Telegram.app from IPA..."
+            mkdir -p build/temp_ipa_extract
+            unzip -q "bazel-bin/Telegram/Telegram.ipa" -d build/temp_ipa_extract
+            EXTRACTED_APP="build/temp_ipa_extract/Payload/Telegram.app"
+            if [ -d "$EXTRACTED_APP" ]; then
+                (cd build/temp_ipa_extract/Payload && zip -r -v "$ABSOLUTE_OUTPUT_PATH/Telegram.app.zip" Telegram.app)
+                echo "artifact_name=Telegram.app.zip" >> $GITHUB_OUTPUT
+                echo "artifact_path=$ABSOLUTE_OUTPUT_PATH/Telegram.app.zip" >> $GITHUB_OUTPUT
+            fi
           fi
-          
-          if [ ! -f "$IPA_PATH" ]; then
-            echo "ERROR: Telegram.ipa not found."
-            exit 1
-          fi
-          
-          echo "Found IPA at: $IPA_PATH"
-          
-          # Extract .app for Simulator use
-          mkdir -p build/temp_extract
-          unzip -q "$IPA_PATH" -d build/temp_extract
-          
-          APP_PATH="build/temp_extract/Payload/Telegram.app"
-          if [ ! -d "$APP_PATH" ]; then
-             echo "ERROR: Telegram.app not found in IPA Payload."
-             exit 1
-          fi
-          
-          # Zip .app for upload (preserves permissions/symlinks)
-          cd build/temp_extract/Payload
-          zip -r "$GITHUB_WORKSPACE/Telegram.ui_only.app.zip" "Telegram.app"
-          
+
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Telegram-UI-Only-App
-          path: Telegram.ui_only.app.zip
+          path: /Users/Shared/telegram-ios/build/artifacts/Telegram.app.zip
