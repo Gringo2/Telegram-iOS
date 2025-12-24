@@ -929,12 +929,17 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 let path = rootPath + "/" + accountRecordIdPathName(id)
                 let _ = try? FileManager.default.createDirectory(atPath: path + "/postbox", withIntermediateDirectories: true, attributes: nil)
                 
+                let semaphore = DispatchSemaphore(value: 0)
                 let _ = accountManager.transaction { transaction in
                     transaction.setCurrentId(id)
                     transaction.updateRecord(id, { _ in
                         return AccountRecord<TelegramAccountRecordAttribute>(id: id, attributes: [.environment(AccountEnvironmentAttribute(environment: .production))], temporarySessionId: nil)
                     })
-                }.start()
+                }.start(completed: {
+                    semaphore.signal()
+                })
+                let _ = semaphore.wait(timeout: .now() + 2.0)
+                print("🧪 MOCK AUTH BOOTSTRAP: Seeded account record (Synchronously). Current account: \(accountManager.currentAccountRecord != nil ? "YES" : "NO")")
             }
         }
 
@@ -1140,6 +1145,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             }
             |> deliverOnMainQueue
             |> map { accountAndSettings -> AuthorizedApplicationContext? in
+                if MockAuth.enabled {
+                    print("🧪 MOCK AUTH DEBUG (Authorized Context Selection): accountAndSettings exists: \(accountAndSettings != nil)")
+                }
                 return accountAndSettings.flatMap { context, callListSettings in
                     return AuthorizedApplicationContext(sharedApplicationContext: sharedApplicationContext, mainWindow: self.mainWindow, context: context as! AccountContextImpl, accountManager: sharedApplicationContext.sharedContext.accountManager, showCallsTab: callListSettings.showTab, reinitializedNotificationSettings: {
                         let _ = (self.context.get()
@@ -1202,6 +1210,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             }
             |> deliverOnMainQueue
             |> map { accountAndSettings -> UnauthorizedApplicationContext? in
+                if MockAuth.enabled {
+                    print("🧪 MOCK AUTH DEBUG (Unauthorized Context Suppression): accountAndSettings exists: \(accountAndSettings != nil)")
+                    return nil
+                }
                 return accountAndSettings.flatMap { account, otherAccountPhoneNumbers in
                     return UnauthorizedApplicationContext(apiId: buildConfig.apiId, apiHash: buildConfig.apiHash, sharedContext: sharedApplicationContext.sharedContext, account: account, otherAccountPhoneNumbers: otherAccountPhoneNumbers)
                 }
