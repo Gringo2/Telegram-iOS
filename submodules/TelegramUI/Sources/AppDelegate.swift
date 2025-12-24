@@ -939,7 +939,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                     semaphore.signal()
                 })
                 let _ = semaphore.wait(timeout: .now() + 2.0)
-                print("🧪 MOCK AUTH BOOTSTRAP: Seeded account record (Synchronously). Current account: \(accountManager.currentAccountRecord != nil ? "YES" : "NO")")
+                print("🧪 MOCK AUTH BOOTSTRAP: Seeded account record (Synchronously).")
             }
         }
 
