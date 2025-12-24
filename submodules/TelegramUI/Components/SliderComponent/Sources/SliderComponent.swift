@@ -5,6 +5,7 @@ import AsyncDisplayKit
 import TelegramPresentationData
 import LegacyComponents
 import ComponentFlow
+import LiquidGlass
 
 
 public final class SliderComponent: Component {
@@ -128,6 +129,8 @@ public final class SliderComponent: Component {
         
         private var component: SliderComponent?
         private weak var state: EmptyComponentState?
+        
+        private let glassController = GlassEffectController()
         
         
         public var hitTestTarget: UIView? {
@@ -274,6 +277,10 @@ public final class SliderComponent: Component {
                     self.sliderView = sliderView
                     self.addSubview(sliderView)
                     
+                    // Glass Layer injection
+                    sliderView.layer.addSublayer(self.glassController.highlightLayer)
+                    self.glassController.highlightLayer.frame = CGRect(x: 0, y: 0, width: 40, height: 40)
+                    
                 }
                 sliderView.lowerBoundTrackColor = component.minTrackForegroundColor
                 switch component.content {
@@ -284,8 +291,10 @@ public final class SliderComponent: Component {
                     } else {
                         sliderView.lowerBoundValue = 0.0
                     }
+                    self.updateGlassPosition()
                 case let .continuous(continuous):
                     sliderView.value = continuous.value
+                    self.updateGlassPosition()
                     if let minValue = continuous.minValue {
                         sliderView.lowerBoundValue = minValue
                     } else {
@@ -325,6 +334,27 @@ public final class SliderComponent: Component {
             case let .continuous(continuous):
                 continuous.valueUpdated(floatValue)
             }
+            self.updateGlassPosition()
+        }
+        
+        private func updateGlassPosition() {
+            guard let sliderView = self.sliderView else { return }
+            let value = sliderView.value
+            let min = sliderView.minimumValue
+            let max = sliderView.maximumValue
+            let range = max - min
+            guard range > 0 else { return }
+            
+            let clampedValue = Swift.max(Swift.min(value, max), min)
+            let relativeValue = CGFloat(clampedValue - min) / CGFloat(range)
+            
+            let trackWidth = sliderView.bounds.width
+            let knobX = relativeValue * trackWidth
+            
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            self.glassController.highlightLayer.position = CGPoint(x: knobX, y: sliderView.bounds.midY)
+            CATransaction.commit()
         }
     }
 
