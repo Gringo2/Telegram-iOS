@@ -56,6 +56,14 @@ jobs:
           echo "=== Disk space AFTER cleanup ==="
           df -h
 
+      - name: Cache Bazel
+        uses: actions/cache@v3
+        with:
+          path: ~/.bazel-disk-cache
+          key: bazel-disk-cache-${{ runner.os }}-${{ hashFiles('versions.json') }}
+          restore-keys: |
+            bazel-disk-cache-${{ runner.os }}-
+
       - name: Create canonical source directory
         run: |
           set -x
@@ -95,8 +103,9 @@ jobs:
 
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           
-          # Use Make.py for absolute parity, injecting --config=ui_only
+          # Use Make.py with caching enabled
           python3 -u build-system/Make/Make.py \
+            --cacheDir="$HOME/.bazel-disk-cache" \
             --bazelArguments="--config=ui_only" \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
             build \
