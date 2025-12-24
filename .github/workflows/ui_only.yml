@@ -1,0 +1,37 @@
+name: UI-Only Build
+
+on:
+  push:
+    branches: [ "ui/dev", "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build_ui_only:
+    runs-on: macos-13
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+          fetch-depth: '0'
+
+      - name: Set active Xcode path
+        run: |
+          XCODE_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["xcode"]);')
+          sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
+
+      - name: Create canonical source directory
+        run: |
+          set -x
+          sudo mkdir -p /Users/Shared
+          cp -R $GITHUB_WORKSPACE /Users/Shared/
+          mv /Users/Shared/$(basename $GITHUB_WORKSPACE) /Users/Shared/telegram-ios
+
+      - name: Build UI Only Mode
+        run: |
+          cd /Users/Shared/telegram-ios
+          
+          # Run the UI-only build configuration
+          # This uses the specific bazel config we added to .bazelrc
+          /usr/local/bin/bazel build --config=ui_only //Telegram:Telegram
