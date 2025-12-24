@@ -17,7 +17,40 @@ jobs:
           submodules: 'recursive'
           fetch-depth: '0'
 
+      - name: Patch Swift Toolchain
+        run: |
+          PYTHON_SCRIPT="
+          import sys
+          import os
+
+          file_path = 'build-system/bazel-rules/rules_swift/swift/toolchains/xcode_swift_toolchain.bzl'
+          if not os.path.exists(file_path):
+              print(f'Error: {file_path} not found')
+              sys.exit(1)
+
+          with open(file_path, 'r') as f:
+              content = f.read()
+
+          target = 'swiftcopts.extend(ctx.attr._copts[BuildSettingInfo].value)'
+          if target not in content:
+              print(f'Error: Could not find target line in {file_path}')
+              sys.exit(1)
+
+          if 'telegram_ui_only' in content:
+              print('Already patched')
+              sys.exit(0)
+
+          patch = '\n\n    if ctx.var.get(\"telegram_ui_only\") == \"1\":\n        swiftcopts.append(\"-DTELEGRAM_UI_ONLY\")'
+          new_content = content.replace(target, target + patch)
+
+          with open(file_path, 'w') as f:
+              f.write(new_content)
+          print('Successfully patched xcode_swift_toolchain.bzl')
+          "
+          python3 -c "$PYTHON_SCRIPT"
+
       - name: Set active Xcode path
+
         run: |
           XCODE_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["xcode"]);')
           
