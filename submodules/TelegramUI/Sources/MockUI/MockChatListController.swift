@@ -19,7 +19,13 @@ private let mockPeers: [MockPeer] = [
     MockPeer(id: "2", name: "John Doe", lastMessage: "Hey, how are you?", unreadCount: 3, avatarColor: UIColor(red: 0.902, green: 0.345, blue: 0.345, alpha: 1.0)),
     MockPeer(id: "3", name: "Design Team", lastMessage: "Alice: New mockups ready", unreadCount: 5, avatarColor: UIColor(red: 0.345, green: 0.902, blue: 0.537, alpha: 1.0)),
     MockPeer(id: "4", name: "Jane Smith", lastMessage: "Thanks!", unreadCount: 0, avatarColor: UIColor(red: 0.902, green: 0.663, blue: 0.345, alpha: 1.0)),
-    MockPeer(id: "5", name: "Dev Chat", lastMessage: "Bob: Fixed the bug", unreadCount: 12, avatarColor: UIColor(red: 0.537, green: 0.345, blue: 0.902, alpha: 1.0))
+    MockPeer(id: "5", name: "Dev Chat", lastMessage: "Bob: Fixed the bug", unreadCount: 12, avatarColor: UIColor(red: 0.537, green: 0.345, blue: 0.902, alpha: 1.0)),
+    MockPeer(id: "6", name: "Paul Graham", lastMessage: "Do things that don't scale", unreadCount: 0, avatarColor: UIColor(red: 0.902, green: 0.345, blue: 0.902, alpha: 1.0)),
+    MockPeer(id: "7", name: "News Channel", lastMessage: "Breaking: New iOS update", unreadCount: 99, avatarColor: UIColor(red: 0.345, green: 0.902, blue: 0.345, alpha: 1.0)),
+    MockPeer(id: "8", name: "Support", lastMessage: "Your ticket #12345", unreadCount: 1, avatarColor: UIColor(red: 0.345, green: 0.345, blue: 0.345, alpha: 1.0)),
+    MockPeer(id: "9", name: "Mom", lastMessage: "Call me later", unreadCount: 0, avatarColor: UIColor(red: 0.902, green: 0.345, blue: 0.537, alpha: 1.0)),
+    MockPeer(id: "10", name: "Telegram Contest", lastMessage: "Good luck!", unreadCount: 0, avatarColor: UIColor(red: 0.202, green: 0.545, blue: 0.845, alpha: 1.0)),
+    MockPeer(id: "11", name: "Unknown", lastMessage: "??", unreadCount: 0, avatarColor: .gray)
 ]
 
 private final class MockChatListItemNode: ASDisplayNode {
