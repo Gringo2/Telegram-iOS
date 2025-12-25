@@ -336,6 +336,25 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         
         // 4. Setup Theme
         let theme = defaultPresentationTheme
+        let rootNav = theme.rootController.navigationBar
+        let navBarTheme = NavigationBarTheme(
+            buttonColor: rootNav.buttonColor,
+            disabledButtonColor: rootNav.disabledButtonColor,
+            primaryTextColor: rootNav.primaryTextColor,
+            backgroundColor: rootNav.blurredBackgroundColor,
+            opaqueBackgroundColor: rootNav.opaqueBackgroundColor,
+            enableBackgroundBlur: true,
+            separatorColor: rootNav.separatorColor,
+            badgeBackgroundColor: rootNav.badgeBackgroundColor,
+            badgeStrokeColor: rootNav.badgeStrokeColor,
+            badgeTextColor: rootNav.badgeTextColor
+        )
+        
+        let navigationTheme = NavigationControllerTheme(
+            statusBar: .black,
+            navigationBar: navBarTheme,
+            emptyAreaColor: theme.list.plainBackgroundColor
+        )
         
         NSLog("[UI-ONLY] Creating high-fidelity mock controllers...")
         let chatsRoot = MockChatListController(navigationBarPresentationData: nil)
@@ -351,12 +370,17 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         
         // 5. TabBarControllerImpl: The production Tab Bar component
         let tabBarController = TabBarControllerImpl(theme: theme)
+        tabBarController.navigationPresentation = .master
         tabBarController.setControllers([chatsRoot, settingsRoot], selectedIndex: 0)
         
-        // 6. Assign to Window1
-        self.mainWindow?.viewController = tabBarController
+        // 6. NavigationController: The "Master" navigation stack
+        let rootController = NavigationController(mode: .single, theme: navigationTheme)
+        rootController.setViewControllers([tabBarController], animated: false)
         
-        // 7. Make Visible
+        // 7. Assign to Window1
+        self.mainWindow?.viewController = rootController
+        
+        // 8. Make Visible
         window.makeKeyAndVisible()
         
         NSLog("[UI-ONLY] ✅ UI-only mode initialization complete!")
