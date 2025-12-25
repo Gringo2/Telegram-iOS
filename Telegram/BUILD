@@ -93,6 +93,18 @@ config_setting(
 )
 
 config_setting(
+    name = "telegram_ui_only_setting",
+    define_values = {
+        "telegram_ui_only": "1",
+    },
+)
+
+selects.config_setting_group(
+    name = "resolvedDisableExtensionsSetting",
+    match_any = [":disableExtensionsSetting", ":telegram_ui_only_setting"],
+)
+
+config_setting(
     name = "projectIncludeReleaseSetting",
     flag_values = {
         ":projectIncludeRelease": "True",
@@ -1738,7 +1750,7 @@ ios_application(
         ":AppStringResources",
     ],
     extensions = select({
-        ":disableExtensionsSetting": [],
+        ":resolvedDisableExtensionsSetting": [],
         "//conditions:default": [
             ":ShareExtension",
             ":NotificationContentExtension",
