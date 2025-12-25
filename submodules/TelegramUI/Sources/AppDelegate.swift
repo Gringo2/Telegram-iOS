@@ -353,7 +353,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         
         navigationController.pushViewController(MockTelegramRootController(navigationBarPresentationData: nil), animated: false)
         
-        mainWindow.hostView.containerView.addSubview(navigationController.view)
+        // CRITICAL: Set the window's view controller
+        mainWindow.viewController = navigationController
         
         window.makeKeyAndVisible()
         return true
