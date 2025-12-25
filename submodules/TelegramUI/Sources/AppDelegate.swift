@@ -1629,9 +1629,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             }
         })
         
-        return true
-    }
 #endif
+    }
+
     
     private var backgroundSessionSourceDataDisposables: [String: Disposable] = [:]
 
