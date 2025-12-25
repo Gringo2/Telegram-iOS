@@ -349,9 +349,25 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         )
         navigationController.viewControllers = [mockRoot]
         
+        NSLog("[UI-ONLY] Creating mock Settings controller...")
+        let mockSettings = MockChatListController(navigationBarPresentationData: nil)
+        mockSettings.title = "Settings"
+        mockSettings.tabBarItem.title = "Settings"
+        if let icon = UIImage(bundleImageName: "Chat List/Tabs/IconSettings") {
+            mockSettings.tabBarItem.image = icon
+            mockSettings.tabBarItem.selectedImage = icon
+        }
+        mockSettings.tabBarItem.animationName = "TabSettings"
+        
+        let settingsNavController = NavigationController(
+            mode: .single,
+            theme: navigationTheme
+        )
+        settingsNavController.viewControllers = [mockSettings]
+        
         NSLog("[UI-ONLY] Creating Telegram TabBarController...")
         let tabBarController = TabBarControllerImpl(theme: theme)
-        tabBarController.setControllers([navigationController], selectedIndex: 0)
+        tabBarController.setControllers([navigationController, settingsNavController], selectedIndex: 0)
         
         NSLog("[UI-ONLY] Setting root view controller...")
         window.rootViewController = tabBarController
