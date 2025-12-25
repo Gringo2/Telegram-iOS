@@ -333,21 +333,16 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         let theme = defaultPresentationTheme
         
         NSLog("[UI-ONLY] Creating NavigationTheme from default theme...")
-        let navigationTheme = NavigationControllerTheme(
-            statusBar: .black, // Default
-            navigationBar: theme.rootController.navigationBar,
-            emptyAreaColor: theme.list.plainBackgroundColor
-        )
+        // We will use standard UINavigationController but style it to match Telegram's theme roughly
+        // The mock controllers inside will handle their own content styling.
         
         NSLog("[UI-ONLY] Creating mock root controller (ChatList)...")
         let mockRoot = MockChatListController(navigationBarPresentationData: nil)
         
-        NSLog("[UI-ONLY] Creating Telegram NavigationController...")
-        let navigationController = NavigationController(
-            mode: .single,
-            theme: navigationTheme
-        )
-        navigationController.viewControllers = [mockRoot]
+        // Wrap Chats in System Nav
+        let chatsNav = UINavigationController(rootViewController: mockRoot)
+        chatsNav.tabBarItem = mockRoot.tabBarItem // Transfer item config
+        chatsNav.navigationBar.barTintColor = .white
         
         NSLog("[UI-ONLY] Creating mock Settings controller...")
         let mockSettings = MockChatListController(navigationBarPresentationData: nil)
@@ -359,15 +354,21 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         }
         mockSettings.tabBarItem.animationName = "TabSettings"
         
-        let settingsNavController = NavigationController(
-            mode: .single,
-            theme: navigationTheme
-        )
-        settingsNavController.viewControllers = [mockSettings]
+        // Wrap Settings in System Nav
+        let settingsNav = UINavigationController(rootViewController: mockSettings)
+        settingsNav.tabBarItem = mockSettings.tabBarItem
+        settingsNav.navigationBar.barTintColor = .white
+
+        NSLog("[UI-ONLY] Creating standard UITabBarController...")
+        let tabBarController = UITabBarController()
+        tabBarController.viewControllers = [chatsNav, settingsNav]
+        tabBarController.selectedIndex = 0
         
-        NSLog("[UI-ONLY] Creating Telegram TabBarController...")
-        let tabBarController = TabBarControllerImpl(theme: theme)
-        tabBarController.setControllers([navigationController, settingsNavController], selectedIndex: 0)
+        // Style the System TabBar to look like Telegram's (Translucent/White)
+        tabBarController.tabBar.barStyle = .default
+        tabBarController.tabBar.isTranslucent = true
+        tabBarController.tabBar.tintColor = theme.rootController.tabBar.selectedTextColor
+        tabBarController.tabBar.unselectedItemTintColor = theme.rootController.tabBar.textColor
         
         NSLog("[UI-ONLY] Setting root view controller...")
         window.rootViewController = tabBarController
