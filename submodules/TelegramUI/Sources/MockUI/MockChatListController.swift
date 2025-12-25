@@ -42,7 +42,7 @@ private final class MockChatListItemNode: ASDisplayNode {
         self.nameNode.attributedText = NSAttributedString(
             string: peer.name,
             attributes: [
-                .font: UIFont.semiboldSystemFont(ofSize: 17.0),
+                .font: UIFont.systemFont(ofSize: 17.0, weight: .semibold),
                 .foregroundColor: UIColor.white
             ]
         )
@@ -146,24 +146,22 @@ private final class MockChatListItemNode: ASDisplayNode {
     }
 }
 
-private final class MockChatListNode: ASDisplayNode, ASTableDataSource, ASTableDelegate {
+private final class MockChatListNode: ASDisplayNode {
     private let bannerNode: MockUIBannerNode
-    private let tableNode: ASTableNode
+    private let scrollNode: ASScrollNode
+    private let itemNodes: [MockChatListItemNode]
     
     override init() {
         self.bannerNode = MockUIBannerNode()
-        self.tableNode = ASTableNode(style: .plain)
+        self.scrollNode = ASScrollNode()
+        self.itemNodes = mockPeers.map { MockChatListItemNode(peer: $0) }
         
         super.init()
         
         self.backgroundColor = .black
-        self.tableNode.backgroundColor = .black
-        self.tableNode.view.separatorStyle = .none
-        self.tableNode.dataSource = self
-        self.tableNode.delegate = self
-        
         self.addSubnode(self.bannerNode)
-        self.addSubnode(self.tableNode)
+        self.addSubnode(self.scrollNode)
+        self.itemNodes.forEach { self.scrollNode.addSubnode($0) }
     }
     
     override func layout() {
@@ -172,25 +170,19 @@ private final class MockChatListNode: ASDisplayNode, ASTableDataSource, ASTableD
         let bannerSize = self.bannerNode.updateLayout(size: self.bounds.size)
         self.bannerNode.frame = CGRect(origin: .zero, size: bannerSize)
         
-        self.tableNode.frame = CGRect(
+        self.scrollNode.frame = CGRect(
             x: 0.0,
             y: bannerSize.height,
             width: self.bounds.width,
             height: self.bounds.height - bannerSize.height
         )
-    }
-    
-    func tableNode(_ tableNode: ASTableNode, numberOfRowsInSection section: Int) -> Int {
-        return mockPeers.count
-    }
-    
-    func tableNode(_ tableNode: ASTableNode, nodeBlockForRowAt indexPath: IndexPath) -> ASCellNodeBlock {
-        let peer = mockPeers[indexPath.row]
-        return {
-            let itemNode = MockChatListItemNode(peer: peer)
-            itemNode.style.height = ASDimension(unit: .points, value: 66.0)
-            return itemNode
+        
+        let itemHeight: CGFloat = 66.0
+        for (index, node) in self.itemNodes.enumerated() {
+            node.frame = CGRect(x: 0.0, y: CGFloat(index) * itemHeight, width: self.bounds.width, height: itemHeight)
         }
+        
+        self.scrollNode.view.contentSize = CGSize(width: self.bounds.width, height: CGFloat(self.itemNodes.count) * itemHeight)
     }
 }
 

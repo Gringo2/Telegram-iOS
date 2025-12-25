@@ -364,11 +364,11 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         
         navigationController.pushViewController(MockTelegramRootController(navigationBarPresentationData: nil), animated: false)
         
-        mainWindow.hostView.contentView.addSubview(navigationController.view)
+        mainWindow.hostView.containerView.addSubview(navigationController.view)
         
         window.makeKeyAndVisible()
         return true
-#endif
+#else
         
         let (window, hostView) = nativeWindowHostView()
         let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
@@ -1111,6 +1111,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         }
         self.sharedContextPromise.set(sharedContextSignal
         |> mapToSignal { sharedApplicationContext, loggingSettings -> Signal<SharedApplicationContext, NoError> in
+            let sharedApplicationContext = sharedApplicationContext as SharedApplicationContext
+            let loggingSettings = loggingSettings as LoggingSettings
             Logger.shared.logToFile = loggingSettings.logToFile
             Logger.shared.logToConsole = loggingSettings.logToConsole
             Logger.shared.redactSensitiveData = loggingSettings.redactSensitiveData
@@ -1629,8 +1631,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         
         return true
     }
+#endif
     
     private var backgroundSessionSourceDataDisposables: [String: Disposable] = [:]
+
     private var backgroundUploadResultSubscribers: [String: Bag<(String?) -> Void>] = [:]
     
     func uploadInBackround(postbox: Postbox, resource: MediaResource) -> Signal<String?, NoError> {

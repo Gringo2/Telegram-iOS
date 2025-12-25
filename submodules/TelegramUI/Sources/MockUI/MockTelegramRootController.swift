@@ -7,7 +7,7 @@ import AsyncDisplayKit
 
 private final class MockTelegramRootNode: ASDisplayNode {
     private let bannerNode: MockUIBannerNode
-    private let buttonNode: ASButtonNode
+    let buttonNode: ASButtonNode
     
     override init() {
         self.bannerNode = MockUIBannerNode()
@@ -60,7 +60,7 @@ final class MockTelegramRootController: ViewController {
     override func loadDisplayNode() {
         self.displayNode = MockTelegramRootNode()
         
-        (self.displayNode as! MockTelegramRootNode).buttonNode.addTarget(
+        self.controlNode.buttonNode.addTarget(
             self,
             action: #selector(self.openChatListPressed),
             forControlEvents: .touchUpInside
