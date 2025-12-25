@@ -137,9 +137,56 @@ jobs:
                 echo "artifact_path=$ABSOLUTE_OUTPUT_PATH/Telegram.app.zip" >> $GITHUB_OUTPUT
             fi
           fi
+          
+          # Export environment variables for release steps
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
+
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Telegram-UI-Only-App
           path: /Users/Shared/telegram-ios/build/artifacts/Telegram.app.zip
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ui-only-build-${{ env.BUILD_NUMBER }}
+          release_name: Telegram UI-Only ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
+          body: |
+            🚧 **UI-Only Build** for iOS Simulator Development
+            
+            **Version:** ${{ env.APP_VERSION }}
+            **Build:** ${{ env.BUILD_NUMBER }}
+            **Mode:** UI-Only (No Authentication, No Network)
+            
+            This build:
+            - ✅ Launches directly to mock UI
+            - ✅ Bypasses all login screens
+            - ✅ No backend/API dependencies
+            - ✅ Simulator only (device builds blocked)
+            
+            **Installation:**
+            ```bash
+            unzip Telegram.app.zip
+            xcrun simctl install <simulator-id> Telegram.app
+            xcrun simctl launch <simulator-id> org.telegram.Telegram
+            ```
+          draft: false
+          prerelease: true
+
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.build_app.outputs.artifact_path }}
+          asset_name: ${{ steps.build_app.outputs.artifact_name }}
+          asset_content_type: application/zip
+
