@@ -323,26 +323,29 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         // UI-Only Mode: Skip all production initialization and go directly to mock UI
         NSLog("[UI-ONLY] Starting UI-only mode initialization...")
         
-        NSLog("[UI-ONLY] Creating standard UIWindow...")
-        let window = UIWindow(frame: UIScreen.main.bounds)
+        NSLog("[UI-ONLY] Creating MockWindow (WindowHost compliant)...")
+        let window = MockWindow(frame: UIScreen.main.bounds)
         self.window = window
-        
-        NSLog("[UI-ONLY] Window created successfully")
         
         // Use default theme for high fidelity
         let theme = defaultPresentationTheme
         
         NSLog("[UI-ONLY] Creating NavigationTheme from default theme...")
-        // We will use standard UINavigationController but style it to match Telegram's theme roughly
-        // The mock controllers inside will handle their own content styling.
+        let navigationTheme = NavigationControllerTheme(
+            statusBar: .black,
+            navigationBar: theme.rootController.navigationBar,
+            emptyAreaColor: theme.list.plainBackgroundColor
+        )
         
         NSLog("[UI-ONLY] Creating mock root controller (ChatList)...")
         let mockRoot = MockChatListController(navigationBarPresentationData: nil)
         
-        // Wrap Chats in System Nav
-        let chatsNav = UINavigationController(rootViewController: mockRoot)
-        chatsNav.tabBarItem = mockRoot.tabBarItem // Transfer item config
-        chatsNav.navigationBar.barTintColor = .white
+        NSLog("[UI-ONLY] Creating Telegram NavigationController...")
+        let navigationController = NavigationController(
+            mode: .single,
+            theme: navigationTheme
+        )
+        navigationController.viewControllers = [mockRoot]
         
         NSLog("[UI-ONLY] Creating mock Settings controller...")
         let mockSettings = MockChatListController(navigationBarPresentationData: nil)
@@ -354,21 +357,15 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         }
         mockSettings.tabBarItem.animationName = "TabSettings"
         
-        // Wrap Settings in System Nav
-        let settingsNav = UINavigationController(rootViewController: mockSettings)
-        settingsNav.tabBarItem = mockSettings.tabBarItem
-        settingsNav.navigationBar.barTintColor = .white
-
-        NSLog("[UI-ONLY] Creating standard UITabBarController...")
-        let tabBarController = UITabBarController()
-        tabBarController.viewControllers = [chatsNav, settingsNav]
-        tabBarController.selectedIndex = 0
+        let settingsNavController = NavigationController(
+            mode: .single,
+            theme: navigationTheme
+        )
+        settingsNavController.viewControllers = [mockSettings]
         
-        // Style the System TabBar to look like Telegram's (Translucent/White)
-        tabBarController.tabBar.barStyle = .default
-        tabBarController.tabBar.isTranslucent = true
-        tabBarController.tabBar.tintColor = theme.rootController.tabBar.selectedTextColor
-        tabBarController.tabBar.unselectedItemTintColor = theme.rootController.tabBar.textColor
+        NSLog("[UI-ONLY] Creating Telegram TabBarController...")
+        let tabBarController = TabBarControllerImpl(theme: theme)
+        tabBarController.setControllers([navigationController, settingsNavController], selectedIndex: 0)
         
         NSLog("[UI-ONLY] Setting root view controller...")
         window.rootViewController = tabBarController
