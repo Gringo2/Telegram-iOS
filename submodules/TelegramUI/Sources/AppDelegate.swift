@@ -357,6 +357,25 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         )
         
         NSLog("[UI-ONLY] Creating high-fidelity mock controllers...")
+        
+        let contactsRoot = MockChatListController(navigationBarPresentationData: nil)
+        contactsRoot.title = "Contacts"
+        contactsRoot.tabBarItem.title = "Contacts"
+        if let icon = UIImage(bundleImageName: "Chat List/Tabs/IconContacts") {
+            contactsRoot.tabBarItem.image = icon
+            contactsRoot.tabBarItem.selectedImage = icon
+        }
+        contactsRoot.tabBarItem.animationName = "TabContacts"
+        
+        let callsRoot = MockChatListController(navigationBarPresentationData: nil)
+        callsRoot.title = "Calls"
+        callsRoot.tabBarItem.title = "Calls"
+        if let icon = UIImage(bundleImageName: "Chat List/Tabs/IconCalls") {
+            callsRoot.tabBarItem.image = icon
+            callsRoot.tabBarItem.selectedImage = icon
+        }
+        callsRoot.tabBarItem.animationName = "TabCalls"
+
         let chatsRoot = MockChatListController(navigationBarPresentationData: nil)
         
         let settingsRoot = MockChatListController(navigationBarPresentationData: nil)
@@ -371,7 +390,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         // 5. TabBarControllerImpl: The production Tab Bar component
         let tabBarController = TabBarControllerImpl(theme: theme)
         tabBarController.navigationPresentation = .master
-        tabBarController.setControllers([chatsRoot, settingsRoot], selectedIndex: 0)
+        tabBarController.setControllers([contactsRoot, callsRoot, chatsRoot, settingsRoot], selectedIndex: 2)
         
         // 6. NavigationController: The "Master" navigation stack
         let rootController = NavigationController(mode: .single, theme: navigationTheme)
