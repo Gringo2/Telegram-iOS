@@ -321,38 +321,23 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
 #if TELEGRAM_UI_ONLY
-        // UI-Only Mode: Skip all production initialization and go directly to mock UI
-        NSLog("[UI-ONLY] Starting UI-only mode initialization (Bulletproof Pattern)...")
+        NSLog("[UI-ONLY] Starting UI-only mode initialization (Telegram Culture)...")
         
-        let window = UIWindow(frame: UIScreen.main.bounds)
+        // 1. nativeWindowHostView: Returns the specialized Window and its hostView
+        let (window, hostView) = nativeWindowHostView()
         self.window = window
+        self.nativeWindow = window
         
-        // Use default theme for high fidelity
+        // 2. ApplicationStatusBarHost: Handles the status bar logic/scene
+        let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
+        
+        // 3. Window1: The high-level UI manager
+        self.mainWindow = Window1(hostView: hostView, statusBarHost: statusBarHost)
+        
+        // 4. Setup Theme
         let theme = defaultPresentationTheme
         
-        NSLog("[UI-ONLY] Creating NavigationTheme from default theme...")
-        
-        let rootNav = theme.rootController.navigationBar
-        let navBarTheme = NavigationBarTheme(
-            buttonColor: rootNav.buttonColor,
-            disabledButtonColor: rootNav.disabledButtonColor,
-            primaryTextColor: rootNav.primaryTextColor,
-            backgroundColor: rootNav.blurredBackgroundColor,
-            opaqueBackgroundColor: rootNav.opaqueBackgroundColor,
-            enableBackgroundBlur: true,
-            separatorColor: rootNav.separatorColor,
-            badgeBackgroundColor: rootNav.badgeBackgroundColor,
-            badgeStrokeColor: rootNav.badgeStrokeColor,
-            badgeTextColor: rootNav.badgeTextColor
-        )
-        
-        let navigationTheme = NavigationControllerTheme(
-            statusBar: .black,
-            navigationBar: navBarTheme,
-            emptyAreaColor: theme.list.plainBackgroundColor
-        )
-        
-        NSLog("[UI-ONLY] Creating root ViewControllers...")
+        NSLog("[UI-ONLY] Creating high-fidelity mock controllers...")
         let chatsRoot = MockChatListController(navigationBarPresentationData: nil)
         
         let settingsRoot = MockChatListController(navigationBarPresentationData: nil)
@@ -364,31 +349,16 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         }
         settingsRoot.tabBarItem.animationName = "TabSettings"
         
-        NSLog("[UI-ONLY] Wrapping in Telegram NavigationControllers...")
-        let chatsNav = NavigationController(
-            mode: .single,
-            theme: navigationTheme
-        )
-        chatsNav.viewControllers = [chatsRoot]
-        
-        let settingsNav = NavigationController(
-            mode: .single,
-            theme: navigationTheme
-        )
-        settingsNav.viewControllers = [settingsRoot]
-        
-        // Keep strong references to prevent deallocation
-        self.uiOnlyNavigationControllers = [chatsNav, settingsNav]
-        
-        NSLog("[UI-ONLY] Creating high-fidelity Telegram TabBarControllerImpl...")
+        // 5. TabBarControllerImpl: The production Tab Bar component
         let tabBarController = TabBarControllerImpl(theme: theme)
         tabBarController.setControllers([chatsRoot, settingsRoot], selectedIndex: 0)
         
-        NSLog("[UI-ONLY] Setting root view controller...")
-        window.rootViewController = tabBarController
+        // 6. Assign to Window1
+        self.mainWindow?.viewController = tabBarController
         
-        NSLog("[UI-ONLY] Making window key and visible...")
+        // 7. Make Visible
         window.makeKeyAndVisible()
+        
         NSLog("[UI-ONLY] ✅ UI-only mode initialization complete!")
         
         return true
