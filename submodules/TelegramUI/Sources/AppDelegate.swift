@@ -215,6 +215,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     @objc var window: UIWindow?
     var nativeWindow: (UIWindow & WindowHost)?
     var mainWindow: Window1!
+    private var uiOnlyNavigationControllers: [NavigationController] = []
     private var dataImportSplash: LegacyDataImportSplash?
     private var memoryUsageOverlayView: UILabel?
     
@@ -378,9 +379,11 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         )
         settingsNavController.viewControllers = [mockSettings]
         
+        self.uiOnlyNavigationControllers = [navigationController, settingsNavController]
+        
         NSLog("[UI-ONLY] Creating Telegram TabBarController...")
         let tabBarController = TabBarControllerImpl(theme: theme)
-        tabBarController.setControllers([navigationController, settingsNavController], selectedIndex: 0)
+        tabBarController.setControllers([mockRoot, mockSettings], selectedIndex: 0)
         
         NSLog("[UI-ONLY] Setting root view controller...")
         window.rootViewController = tabBarController
