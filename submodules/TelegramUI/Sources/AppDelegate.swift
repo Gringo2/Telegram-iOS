@@ -322,10 +322,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
 #if TELEGRAM_UI_ONLY
         // UI-Only Mode: Skip all production initialization and go directly to mock UI
-        NSLog("[UI-ONLY] Starting UI-only mode initialization...")
+        NSLog("[UI-ONLY] Starting UI-only mode initialization (Bulletproof Pattern)...")
         
-        NSLog("[UI-ONLY] Creating MockWindow (WindowHost compliant)...")
-        let window = MockWindow(frame: UIScreen.main.bounds)
+        let window = UIWindow(frame: UIScreen.main.bounds)
         self.window = window
         
         // Use default theme for high fidelity
@@ -353,37 +352,44 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             emptyAreaColor: theme.list.plainBackgroundColor
         )
         
-        NSLog("[UI-ONLY] Creating mock root controller (ChatList)...")
-        let mockRoot = MockChatListController(navigationBarPresentationData: nil)
+        NSLog("[UI-ONLY] Creating root ViewControllers...")
+        let chatsRoot = MockChatListController(navigationBarPresentationData: nil)
         
-        NSLog("[UI-ONLY] Creating Telegram NavigationController...")
-        let navigationController = NavigationController(
-            mode: .single,
-            theme: navigationTheme
-        )
-        navigationController.viewControllers = [mockRoot]
-        
-        NSLog("[UI-ONLY] Creating mock Settings controller...")
-        let mockSettings = MockChatListController(navigationBarPresentationData: nil)
-        mockSettings.title = "Settings"
-        mockSettings.tabBarItem.title = "Settings"
+        let settingsRoot = MockChatListController(navigationBarPresentationData: nil)
+        settingsRoot.title = "Settings"
+        settingsRoot.tabBarItem.title = "Settings"
         if let icon = UIImage(bundleImageName: "Chat List/Tabs/IconSettings") {
-            mockSettings.tabBarItem.image = icon
-            mockSettings.tabBarItem.selectedImage = icon
+            settingsRoot.tabBarItem.image = icon
+            settingsRoot.tabBarItem.selectedImage = icon
         }
-        mockSettings.tabBarItem.animationName = "TabSettings"
+        settingsRoot.tabBarItem.animationName = "TabSettings"
         
-        let settingsNavController = NavigationController(
+        NSLog("[UI-ONLY] Wrapping in Telegram NavigationControllers...")
+        let chatsNav = NavigationController(
             mode: .single,
             theme: navigationTheme
         )
-        settingsNavController.viewControllers = [mockSettings]
+        chatsNav.viewControllers = [chatsRoot]
         
-        self.uiOnlyNavigationControllers = [navigationController, settingsNavController]
+        let settingsNav = NavigationController(
+            mode: .single,
+            theme: navigationTheme
+        )
+        settingsNav.viewControllers = [settingsRoot]
         
-        NSLog("[UI-ONLY] Creating Telegram TabBarController...")
-        let tabBarController = TabBarControllerImpl(theme: theme)
-        tabBarController.setControllers([mockRoot, mockSettings], selectedIndex: 0)
+        // Keep strong references to prevent deallocation
+        self.uiOnlyNavigationControllers = [chatsNav, settingsNav]
+        
+        NSLog("[UI-ONLY] Creating stable UITabBarController...")
+        let tabBarController = UITabBarController()
+        tabBarController.viewControllers = [chatsNav, settingsNav]
+        tabBarController.selectedIndex = 0
+        
+        // Match Telegram's TabBar appearance
+        tabBarController.tabBar.barStyle = .default
+        tabBarController.tabBar.isTranslucent = true
+        tabBarController.tabBar.tintColor = theme.rootController.tabBar.selectedTextColor
+        tabBarController.tabBar.unselectedItemTintColor = theme.rootController.tabBar.textColor
         
         NSLog("[UI-ONLY] Setting root view controller...")
         window.rootViewController = tabBarController
