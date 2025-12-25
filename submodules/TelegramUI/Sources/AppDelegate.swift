@@ -380,16 +380,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         // Keep strong references to prevent deallocation
         self.uiOnlyNavigationControllers = [chatsNav, settingsNav]
         
-        NSLog("[UI-ONLY] Creating stable UITabBarController...")
-        let tabBarController = UITabBarController()
-        tabBarController.viewControllers = [chatsNav, settingsNav]
-        tabBarController.selectedIndex = 0
-        
-        // Match Telegram's TabBar appearance
-        tabBarController.tabBar.barStyle = .default
-        tabBarController.tabBar.isTranslucent = true
-        tabBarController.tabBar.tintColor = theme.rootController.tabBar.selectedTextColor
-        tabBarController.tabBar.unselectedItemTintColor = theme.rootController.tabBar.textColor
+        NSLog("[UI-ONLY] Creating high-fidelity Telegram TabBarControllerImpl...")
+        let tabBarController = TabBarControllerImpl(theme: theme)
+        tabBarController.setControllers([chatsRoot, settingsRoot], selectedIndex: 0)
         
         NSLog("[UI-ONLY] Setting root view controller...")
         window.rootViewController = tabBarController
