@@ -318,19 +318,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     private var recaptchaClientsBySiteKey: [String: Promise<RecaptchaClient>] = [:]
         
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        precondition(!testIsLaunched)
-        testIsLaunched = true
-        
-        let _ = voipTokenPromise.get().start(next: { token in
-            self.voipDeviceToken.set(.single(token))
-        })
-        let _ = notificationTokenPromise.get().start(next: { token in
-            self.regularDeviceToken.set(.single(token))
-        })
-        
-        let launchStartTime = CFAbsoluteTimeGetCurrent()
-        
 #if TELEGRAM_UI_ONLY
+        // UI-Only Mode: Skip all production initialization and go directly to mock UI
         let (window, hostView) = nativeWindowHostView()
         let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
         let mainWindow = Window1(hostView: hostView, statusBarHost: statusBarHost)
@@ -369,6 +358,19 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         window.makeKeyAndVisible()
         return true
 #else
+        // Production Mode: Full Telegram initialization
+        precondition(!testIsLaunched)
+        testIsLaunched = true
+        
+        let _ = voipTokenPromise.get().start(next: { token in
+            self.voipDeviceToken.set(.single(token))
+        })
+        let _ = notificationTokenPromise.get().start(next: { token in
+            self.regularDeviceToken.set(.single(token))
+        })
+        
+        let launchStartTime = CFAbsoluteTimeGetCurrent()
+        
         
         let (window, hostView) = nativeWindowHostView()
         let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
