@@ -16,7 +16,9 @@ final class MockWindow: UIWindow, WindowHost {
     }
     
     func present(_ controller: ContainableController, on level: PresentationSurfaceLevel, blockInteraction: Bool, completion: @escaping () -> Void) {
-        self.rootViewController?.present(controller, animated: true, completion: completion)
+        if let controller = controller as? UIViewController {
+            self.rootViewController?.present(controller, animated: true, completion: completion)
+        }
     }
     
     func presentInGlobalOverlay(_ controller: ContainableController) {

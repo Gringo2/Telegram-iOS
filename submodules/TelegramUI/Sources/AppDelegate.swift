@@ -331,9 +331,24 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         let theme = defaultPresentationTheme
         
         NSLog("[UI-ONLY] Creating NavigationTheme from default theme...")
+        
+        let rootNav = theme.rootController.navigationBar
+        let navBarTheme = NavigationBarTheme(
+            buttonColor: rootNav.buttonColor,
+            disabledButtonColor: rootNav.disabledButtonColor,
+            primaryTextColor: rootNav.primaryTextColor,
+            backgroundColor: rootNav.blurredBackgroundColor,
+            opaqueBackgroundColor: rootNav.opaqueBackgroundColor,
+            enableBackgroundBlur: true,
+            separatorColor: rootNav.separatorColor,
+            badgeBackgroundColor: rootNav.badgeBackgroundColor,
+            badgeStrokeColor: rootNav.badgeStrokeColor,
+            badgeTextColor: rootNav.badgeTextColor
+        )
+        
         let navigationTheme = NavigationControllerTheme(
             statusBar: .black,
-            navigationBar: theme.rootController.navigationBar,
+            navigationBar: navBarTheme,
             emptyAreaColor: theme.list.plainBackgroundColor
         )
         
