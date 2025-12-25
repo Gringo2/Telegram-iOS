@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import Display
 import AsyncDisplayKit
+import AppBundle
 
 #if TELEGRAM_UI_ONLY
 
@@ -195,6 +196,14 @@ final class MockChatListController: ViewController {
         super.init(navigationBarPresentationData: navigationBarPresentationData)
         
         self.title = "Chats"
+        
+        // Configuring Tab Bar Item for Liquid Glass Fidelity
+        self.tabBarItem.title = "Chats"
+        if let icon = UIImage(bundleImageName: "Chat List/Tabs/IconChats") {
+            self.tabBarItem.image = icon
+            self.tabBarItem.selectedImage = icon
+        }
+        self.tabBarItem.animationName = "TabChats"
     }
     
     required init(coder aDecoder: NSCoder) {

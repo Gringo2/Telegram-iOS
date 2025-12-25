@@ -18,6 +18,7 @@ import AccountContext
 import OverlayStatusController
 import UndoUI
 import LegacyUI
+import TabBarUI
 import PassportUI
 import SettingsUI
 import AppBundle
@@ -316,7 +317,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     private let regularDeviceToken = Promise<Data?>(nil)
     
     private var recaptchaClientsBySiteKey: [String: Promise<RecaptchaClient>] = [:]
-        
+    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
 #if TELEGRAM_UI_ONLY
         // UI-Only Mode: Skip all production initialization and go directly to mock UI
@@ -326,22 +327,34 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         let window = UIWindow(frame: UIScreen.main.bounds)
         self.window = window
         
-        // Note: We skip initializing self.mainWindow (Window1) and self.nativeWindow
-        // because we are using standard UIKit components to ensure stability in UI-only mode.
-        // Since we return true immediately, the production code that accesses mainWindow never runs.
-        
         NSLog("[UI-ONLY] Window created successfully")
         
-        NSLog("[UI-ONLY] Creating mock root controller...")
-        let mockRoot = MockTelegramRootController(navigationBarPresentationData: nil)
+        // Use default theme for high fidelity
+        let theme = defaultPresentationTheme
         
-        NSLog("[UI-ONLY] Creating standard UINavigationController...")
-        let navigationController = UINavigationController(rootViewController: mockRoot)
-        navigationController.navigationBar.barTintColor = .white
-        navigationController.navigationBar.isTranslucent = false
+        NSLog("[UI-ONLY] Creating NavigationTheme from default theme...")
+        let navigationTheme = NavigationControllerTheme(
+            statusBar: .black, // Default
+            navigationBar: theme.rootController.navigationBar,
+            emptyAreaColor: theme.list.plainBackgroundColor
+        )
+        
+        NSLog("[UI-ONLY] Creating mock root controller (ChatList)...")
+        let mockRoot = MockChatListController(navigationBarPresentationData: nil)
+        
+        NSLog("[UI-ONLY] Creating Telegram NavigationController...")
+        let navigationController = NavigationController(
+            mode: .single,
+            theme: navigationTheme
+        )
+        navigationController.viewControllers = [mockRoot]
+        
+        NSLog("[UI-ONLY] Creating Telegram TabBarController...")
+        let tabBarController = TabBarControllerImpl(theme: theme)
+        tabBarController.setControllers([navigationController], selectedIndex: 0)
         
         NSLog("[UI-ONLY] Setting root view controller...")
-        window.rootViewController = navigationController
+        window.rootViewController = tabBarController
         
         NSLog("[UI-ONLY] Making window key and visible...")
         window.makeKeyAndVisible()
