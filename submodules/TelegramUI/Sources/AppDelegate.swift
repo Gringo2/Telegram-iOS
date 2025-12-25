@@ -322,66 +322,60 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         // UI-Only Mode: Skip all production initialization and go directly to mock UI
         NSLog("[UI-ONLY] Starting UI-only mode initialization...")
         
-        do {
-            NSLog("[UI-ONLY] Creating window...")
-            let (window, hostView) = nativeWindowHostView()
-            let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
-            let mainWindow = Window1(hostView: hostView, statusBarHost: statusBarHost)
-            self.window = window
-            self.nativeWindow = window
-            self.mainWindow = mainWindow
-            NSLog("[UI-ONLY] Window created successfully")
-            
-            NSLog("[UI-ONLY] Creating navigation theme...")
-            let navigationBarTheme = NavigationBarTheme(
-                buttonColor: .black,
-                disabledButtonColor: .lightGray,
-                primaryTextColor: .black,
-                backgroundColor: .white,
-                opaqueBackgroundColor: .white,
-                enableBackgroundBlur: true,
-                separatorColor: .lightGray,
-                badgeBackgroundColor: .red,
-                badgeStrokeColor: .white,
-                badgeTextColor: .white
-            )
-            
-            let navigationTheme = NavigationControllerTheme(
-                statusBar: .black,
-                navigationBar: navigationBarTheme,
-                emptyAreaColor: .black
-            )
-            NSLog("[UI-ONLY] Navigation theme created")
-            
-            NSLog("[UI-ONLY] Creating navigation controller...")
-            let navigationController = NavigationController(
-                mode: .single,
-                theme: navigationTheme
-            )
-            NSLog("[UI-ONLY] Navigation controller created")
-            
-            NSLog("[UI-ONLY] Creating mock root controller...")
-            let mockRoot = MockTelegramRootController(navigationBarPresentationData: nil)
-            NSLog("[UI-ONLY] Mock root controller created")
-            
-            NSLog("[UI-ONLY] Pushing mock root controller...")
-            navigationController.pushViewController(mockRoot, animated: false)
-            NSLog("[UI-ONLY] Mock root controller pushed")
-            
-            NSLog("[UI-ONLY] Setting window view controller...")
-            mainWindow.viewController = navigationController
-            NSLog("[UI-ONLY] Window view controller set")
-            
-            NSLog("[UI-ONLY] Making window key and visible...")
-            window.makeKeyAndVisible()
-            NSLog("[UI-ONLY] ✅ UI-only mode initialization complete!")
-            
-            return true
-        } catch {
-            NSLog("[UI-ONLY] ❌ FATAL ERROR during initialization: \(error)")
-            NSLog("[UI-ONLY] Error details: \(error.localizedDescription)")
-            fatalError("UI-only mode failed to initialize: \(error)")
-        }
+        NSLog("[UI-ONLY] Creating window...")
+        let (window, hostView) = nativeWindowHostView()
+        let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
+        let mainWindow = Window1(hostView: hostView, statusBarHost: statusBarHost)
+        self.window = window
+        self.nativeWindow = window
+        self.mainWindow = mainWindow
+        NSLog("[UI-ONLY] Window created successfully")
+        
+        NSLog("[UI-ONLY] Creating navigation theme...")
+        let navigationBarTheme = NavigationBarTheme(
+            buttonColor: .black,
+            disabledButtonColor: .lightGray,
+            primaryTextColor: .black,
+            backgroundColor: .white,
+            opaqueBackgroundColor: .white,
+            enableBackgroundBlur: true,
+            separatorColor: .lightGray,
+            badgeBackgroundColor: .red,
+            badgeStrokeColor: .white,
+            badgeTextColor: .white
+        )
+        
+        let navigationTheme = NavigationControllerTheme(
+            statusBar: .black,
+            navigationBar: navigationBarTheme,
+            emptyAreaColor: .black
+        )
+        NSLog("[UI-ONLY] Navigation theme created")
+        
+        NSLog("[UI-ONLY] Creating navigation controller...")
+        let navigationController = NavigationController(
+            mode: .single,
+            theme: navigationTheme
+        )
+        NSLog("[UI-ONLY] Navigation controller created")
+        
+        NSLog("[UI-ONLY] Creating mock root controller...")
+        let mockRoot = MockTelegramRootController(navigationBarPresentationData: nil)
+        NSLog("[UI-ONLY] Mock root controller created")
+        
+        NSLog("[UI-ONLY] Pushing mock root controller...")
+        navigationController.pushViewController(mockRoot, animated: false)
+        NSLog("[UI-ONLY] Mock root controller pushed")
+        
+        NSLog("[UI-ONLY] Setting window view controller...")
+        mainWindow.viewController = navigationController
+        NSLog("[UI-ONLY] Window view controller set")
+        
+        NSLog("[UI-ONLY] Making window key and visible...")
+        window.makeKeyAndVisible()
+        NSLog("[UI-ONLY] ✅ UI-only mode initialization complete!")
+        
+        return true
 #else
         // Production Mode: Full Telegram initialization
         precondition(!testIsLaunched)
