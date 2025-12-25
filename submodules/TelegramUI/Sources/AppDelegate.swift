@@ -320,44 +320,68 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
 #if TELEGRAM_UI_ONLY
         // UI-Only Mode: Skip all production initialization and go directly to mock UI
-        let (window, hostView) = nativeWindowHostView()
-        let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
-        let mainWindow = Window1(hostView: hostView, statusBarHost: statusBarHost)
-        self.window = window
-        self.nativeWindow = window
-        self.mainWindow = mainWindow
+        NSLog("[UI-ONLY] Starting UI-only mode initialization...")
         
-        let navigationBarTheme = NavigationBarTheme(
-            buttonColor: .black,
-            disabledButtonColor: .lightGray,
-            primaryTextColor: .black,
-            backgroundColor: .white,
-            opaqueBackgroundColor: .white,
-            enableBackgroundBlur: true,
-            separatorColor: .lightGray,
-            badgeBackgroundColor: .red,
-            badgeStrokeColor: .white,
-            badgeTextColor: .white
-        )
-        
-        let navigationTheme = NavigationControllerTheme(
-            statusBar: .black,
-            navigationBar: navigationBarTheme,
-            emptyAreaColor: .black
-        )
-        
-        let navigationController = NavigationController(
-            mode: .single,
-            theme: navigationTheme
-        )
-        
-        navigationController.pushViewController(MockTelegramRootController(navigationBarPresentationData: nil), animated: false)
-        
-        // CRITICAL: Set the window's view controller
-        mainWindow.viewController = navigationController
-        
-        window.makeKeyAndVisible()
-        return true
+        do {
+            NSLog("[UI-ONLY] Creating window...")
+            let (window, hostView) = nativeWindowHostView()
+            let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
+            let mainWindow = Window1(hostView: hostView, statusBarHost: statusBarHost)
+            self.window = window
+            self.nativeWindow = window
+            self.mainWindow = mainWindow
+            NSLog("[UI-ONLY] Window created successfully")
+            
+            NSLog("[UI-ONLY] Creating navigation theme...")
+            let navigationBarTheme = NavigationBarTheme(
+                buttonColor: .black,
+                disabledButtonColor: .lightGray,
+                primaryTextColor: .black,
+                backgroundColor: .white,
+                opaqueBackgroundColor: .white,
+                enableBackgroundBlur: true,
+                separatorColor: .lightGray,
+                badgeBackgroundColor: .red,
+                badgeStrokeColor: .white,
+                badgeTextColor: .white
+            )
+            
+            let navigationTheme = NavigationControllerTheme(
+                statusBar: .black,
+                navigationBar: navigationBarTheme,
+                emptyAreaColor: .black
+            )
+            NSLog("[UI-ONLY] Navigation theme created")
+            
+            NSLog("[UI-ONLY] Creating navigation controller...")
+            let navigationController = NavigationController(
+                mode: .single,
+                theme: navigationTheme
+            )
+            NSLog("[UI-ONLY] Navigation controller created")
+            
+            NSLog("[UI-ONLY] Creating mock root controller...")
+            let mockRoot = MockTelegramRootController(navigationBarPresentationData: nil)
+            NSLog("[UI-ONLY] Mock root controller created")
+            
+            NSLog("[UI-ONLY] Pushing mock root controller...")
+            navigationController.pushViewController(mockRoot, animated: false)
+            NSLog("[UI-ONLY] Mock root controller pushed")
+            
+            NSLog("[UI-ONLY] Setting window view controller...")
+            mainWindow.viewController = navigationController
+            NSLog("[UI-ONLY] Window view controller set")
+            
+            NSLog("[UI-ONLY] Making window key and visible...")
+            window.makeKeyAndVisible()
+            NSLog("[UI-ONLY] ✅ UI-only mode initialization complete!")
+            
+            return true
+        } catch {
+            NSLog("[UI-ONLY] ❌ FATAL ERROR during initialization: \(error)")
+            NSLog("[UI-ONLY] Error details: \(error.localizedDescription)")
+            fatalError("UI-only mode failed to initialize: \(error)")
+        }
 #else
         // Production Mode: Full Telegram initialization
         precondition(!testIsLaunched)
