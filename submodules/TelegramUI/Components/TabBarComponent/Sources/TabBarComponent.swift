@@ -281,8 +281,12 @@ public final class TabBarComponent: Component {
         }
 
         @objc private func onTabSelectionGesture(_ recognizer: TabSelectionRecognizer) {
+            let location = recognizer.location(in: self.liquidLensView)
+            
             switch recognizer.state {
             case .began:
+                self.liquidLensView.beganGesture(at: location)
+                
                 if let itemId = self.item(at: recognizer.location(in: self)), let itemView = self.itemViews[itemId]?.view {
                     let startX = itemView.frame.minX - 4.0
                     self.selectionGestureState = (startX, startX)
@@ -294,12 +298,20 @@ public final class TabBarComponent: Component {
                     self.state?.updated(transition: .spring(duration: 0.45), isLocal: true)
                 }
             case .changed:
+                self.liquidLensView.updateTouch(at: location)
+                
                 if var selectionGestureState = self.selectionGestureState {
                     selectionGestureState.currentX = selectionGestureState.startX + recognizer.translation(in: self).x
                     self.selectionGestureState = selectionGestureState
                     self.state?.updated(transition: .immediate, isLocal: true)
                 }
             case .ended, .cancelled:
+                if recognizer.state == .cancelled {
+                    self.liquidLensView.cancelGesture()
+                } else {
+                    self.liquidLensView.endedGesture(at: location)
+                }
+                
                 self.selectionGestureState = nil
                 if let component = self.component, let itemId = self.item(at: recognizer.location(in: self)) {
                     guard let item = component.items.first(where: { $0.id == itemId }) else {

@@ -238,6 +238,29 @@ public final class LiquidLensView: UIView {
         self.glassController.performTapAnimation(at: location)
     }
 
+    public func beganGesture(at location: CGPoint) {
+        if let legacySelectionView = self.legacySelectionView {
+            let transition = ComponentTransition.easeInOut(duration: 0.2)
+            transition.setScale(view: legacySelectionView, scale: 0.8)
+            transition.setAlpha(view: legacySelectionView, alpha: 0.6)
+        }
+    }
+
+    public func updateTouch(at location: CGPoint) {
+    }
+
+    public func endedGesture(at location: CGPoint) {
+        if let legacySelectionView = self.legacySelectionView {
+            let transition = ComponentTransition.spring(duration: 0.4)
+            transition.setScale(view: legacySelectionView, scale: 1.0)
+            transition.setAlpha(view: legacySelectionView, alpha: 1.0)
+        }
+    }
+
+    public func cancelGesture() {
+        self.endedGesture(at: CGPoint())
+    }
+
 
     public func update(size: CGSize, selectionX: CGFloat, selectionWidth: CGFloat, isDark: Bool, isLifted: Bool, transition: ComponentTransition) {
         let params = Params(size: size, selectionX: selectionX, selectionWidth: selectionWidth, isDark: isDark, isLifted: isLifted)
