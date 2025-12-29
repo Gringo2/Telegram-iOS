@@ -2,7 +2,7 @@ name: UI-Only Build
 
 on:
   push:
-    branches: [ "ui/dev", "master" ]
+    branches: [ "ui/dev", "master", "contest-ui-dev" ]
   pull_request:
     branches: [ "master" ]
   workflow_dispatch: {}
