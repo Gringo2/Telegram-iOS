@@ -75,3 +75,8 @@ Telegram.LSP.json
 **/.build/**
 spm-files
 .bsp/**
+LiquidGlassContest
+reports
+
+# Contest documentation and analysis artifacts
+contestcontext/

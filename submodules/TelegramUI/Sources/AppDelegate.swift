@@ -18,6 +18,7 @@ import AccountContext
 import OverlayStatusController
 import UndoUI
 import LegacyUI
+import TabBarUI
 import PassportUI
 import SettingsUI
 import AppBundle
@@ -214,6 +215,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     @objc var window: UIWindow?
     var nativeWindow: (UIWindow & WindowHost)?
     var mainWindow: Window1!
+    private var uiOnlyNavigationControllers: [NavigationController] = []
     private var dataImportSplash: LegacyDataImportSplash?
     private var memoryUsageOverlayView: UILabel?
     
@@ -316,8 +318,95 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     private let regularDeviceToken = Promise<Data?>(nil)
     
     private var recaptchaClientsBySiteKey: [String: Promise<RecaptchaClient>] = [:]
-        
+    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+#if TELEGRAM_UI_ONLY
+        NSLog("[UI-ONLY] Starting UI-only mode initialization (Telegram Culture)...")
+        
+        // 1. nativeWindowHostView: Returns the specialized Window and its hostView
+        let (window, hostView) = nativeWindowHostView()
+        self.window = window
+        self.nativeWindow = window
+        
+        // 2. ApplicationStatusBarHost: Handles the status bar logic/scene
+        let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
+        
+        // 3. Window1: The high-level UI manager
+        self.mainWindow = Window1(hostView: hostView, statusBarHost: statusBarHost)
+        
+        // 4. Setup Theme
+        let theme = defaultPresentationTheme
+        let rootNav = theme.rootController.navigationBar
+        let navBarTheme = NavigationBarTheme(
+            buttonColor: rootNav.buttonColor,
+            disabledButtonColor: rootNav.disabledButtonColor,
+            primaryTextColor: rootNav.primaryTextColor,
+            backgroundColor: rootNav.blurredBackgroundColor,
+            opaqueBackgroundColor: rootNav.opaqueBackgroundColor,
+            enableBackgroundBlur: true,
+            separatorColor: rootNav.separatorColor,
+            badgeBackgroundColor: rootNav.badgeBackgroundColor,
+            badgeStrokeColor: rootNav.badgeStrokeColor,
+            badgeTextColor: rootNav.badgeTextColor
+        )
+        
+        let navigationTheme = NavigationControllerTheme(
+            statusBar: .black,
+            navigationBar: navBarTheme,
+            emptyAreaColor: theme.list.plainBackgroundColor
+        )
+        
+        NSLog("[UI-ONLY] Creating high-fidelity mock controllers...")
+        
+        let contactsRoot = MockChatListController(navigationBarPresentationData: nil)
+        contactsRoot.title = "Contacts"
+        contactsRoot.tabBarItem.title = "Contacts"
+        if let icon = UIImage(bundleImageName: "Chat List/Tabs/IconContacts") {
+            contactsRoot.tabBarItem.image = icon
+            contactsRoot.tabBarItem.selectedImage = icon
+        }
+        contactsRoot.tabBarItem.animationName = "TabContacts"
+        
+        let callsRoot = MockChatListController(navigationBarPresentationData: nil)
+        callsRoot.title = "Calls"
+        callsRoot.tabBarItem.title = "Calls"
+        if let icon = UIImage(bundleImageName: "Chat List/Tabs/IconCalls") {
+            callsRoot.tabBarItem.image = icon
+            callsRoot.tabBarItem.selectedImage = icon
+        }
+        callsRoot.tabBarItem.animationName = "TabCalls"
+
+        let chatsRoot = MockChatListController(navigationBarPresentationData: nil)
+        
+        let settingsRoot = MockChatListController(navigationBarPresentationData: nil)
+        settingsRoot.title = "Settings"
+        settingsRoot.tabBarItem.title = "Settings"
+        if let icon = UIImage(bundleImageName: "Chat List/Tabs/IconSettings") {
+            settingsRoot.tabBarItem.image = icon
+            settingsRoot.tabBarItem.selectedImage = icon
+        }
+        settingsRoot.tabBarItem.animationName = "TabSettings"
+        
+        // 5. TabBarControllerImpl: The production Tab Bar component
+        let tabBarController = TabBarControllerImpl(theme: theme)
+        tabBarController.navigationPresentation = .master
+        tabBarController.setControllers([contactsRoot, callsRoot, chatsRoot, settingsRoot], selectedIndex: 2)
+        
+        // 6. NavigationController: The "Master" navigation stack
+        let rootController = NavigationController(mode: .single, theme: navigationTheme)
+        rootController.setViewControllers([tabBarController], animated: false)
+        
+        // 7. Assign to Window1
+        self.mainWindow?.viewController = rootController
+        
+        // 8. Make Visible
+        window.makeKeyAndVisible()
+        
+        NSLog("[UI-ONLY] ✅ UI-only mode initialization complete!")
+        
+        return true
+#else
+        // Production Mode: Full Telegram initialization
         precondition(!testIsLaunched)
         testIsLaunched = true
         
@@ -329,6 +418,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         })
         
         let launchStartTime = CFAbsoluteTimeGetCurrent()
+        
         
         let (window, hostView) = nativeWindowHostView()
         let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
@@ -1071,6 +1161,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         }
         self.sharedContextPromise.set(sharedContextSignal
         |> mapToSignal { sharedApplicationContext, loggingSettings -> Signal<SharedApplicationContext, NoError> in
+            let sharedApplicationContext = sharedApplicationContext as SharedApplicationContext
+            let loggingSettings = loggingSettings as LoggingSettings
             Logger.shared.logToFile = loggingSettings.logToFile
             Logger.shared.logToConsole = loggingSettings.logToConsole
             Logger.shared.redactSensitiveData = loggingSettings.redactSensitiveData
@@ -1587,10 +1679,12 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             }
         })
         
-        return true
+#endif
     }
+
     
     private var backgroundSessionSourceDataDisposables: [String: Disposable] = [:]
+
     private var backgroundUploadResultSubscribers: [String: Bag<(String?) -> Void>] = [:]
     
     func uploadInBackround(postbox: Postbox, resource: MediaResource) -> Signal<String?, NoError> {
