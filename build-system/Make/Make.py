@@ -164,7 +164,13 @@ class BazelCommandLine:
                 '--ios_multi_cpus=sim_arm64',
 
                 # Always build universal Watch binaries.
-                '--watchos_cpus=arm64_32'
+                '--watchos_cpus=arm64_32',
+
+                # Generate DSYM files when building.
+                '--apple_generate_dsym',
+
+                # Require DSYM files as build output.
+                '--output_groups=+dsyms',
             ] + self.common_debug_args
         elif configuration == 'release_sim_arm64':
             self.configuration_args = [
@@ -255,6 +261,9 @@ class BazelCommandLine:
                 # rather than as part of the compilation.
                 '--features=swift.split_derived_files_generation',
             ]
+
+        if self.additional_args is not None:
+            combined_arguments += shlex.split(self.additional_args)
 
         return combined_arguments
 
@@ -626,6 +635,9 @@ def build(bazel, arguments):
     bazel_command_line.set_enable_sandbox(arguments.sandbox)
 
     bazel_command_line.set_split_swiftmodules(arguments.enableParallelSwiftmoduleGeneration)
+
+    if arguments.bazelArguments is not None:
+        bazel_command_line.add_additional_args(arguments.bazelArguments)
 
     bazel_command_line.invoke_build()
 
