@@ -102,6 +102,7 @@ jobs:
           for profile in "$PROFILES_DIR"/*.mobileprovision; do
             openssl smime -verify -noverify -in "$profile" -inform DER -out "temp.plist" 2>/dev/null || true
             sed -i '' 's/2025-/2035-/g' temp.plist
+            sed -i '' 's/ph.telegra.Telegraph/org.telegram.Telegram/g' temp.plist
             openssl smime -sign -in temp.plist -out "$profile" -outform DER -inkey "$KEY_FILE" -signer "$CERT_FILE" -nodetach
           done
           rm -f "$KEY_FILE" "$CERT_FILE" "temp.plist"
