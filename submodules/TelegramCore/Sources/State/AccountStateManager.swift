@@ -233,8 +233,8 @@ public final class AccountStateManager {
             return self.nextId
         }
         
-        private let isUpdatingValue = ValuePromise<Bool>(true)
-        private var currentIsUpdatingValue = true {
+        private let isUpdatingValue = ValuePromise<Bool>(MockAuth.enabled ? false : true)
+        private var currentIsUpdatingValue = MockAuth.enabled ? false : true {
             didSet {
                 if self.currentIsUpdatingValue != oldValue {
                     self.isUpdatingValue.set(self.currentIsUpdatingValue)

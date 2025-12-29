@@ -923,6 +923,26 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         let accountManager = AccountManager<TelegramAccountManagerTypes>(basePath: rootPath + "/accounts-metadata", isTemporary: false, isReadOnly: false, useCaches: true, removeDatabaseOnError: true)
         self.accountManager = accountManager
 
+        if MockAuth.enabled {
+            if accountManager._internalAccountRecordsSync().records.isEmpty {
+                let id = generateAccountRecordId()
+                let path = rootPath + "/" + accountRecordIdPathName(id)
+                let _ = try? FileManager.default.createDirectory(atPath: path + "/postbox", withIntermediateDirectories: true, attributes: nil)
+                
+                let semaphore = DispatchSemaphore(value: 0)
+                let _ = accountManager.transaction { transaction in
+                    transaction.setCurrentId(id)
+                    transaction.updateRecord(id, { _ in
+                        return AccountRecord<TelegramAccountRecordAttribute>(id: id, attributes: [.environment(AccountEnvironmentAttribute(environment: .production))], temporarySessionId: nil)
+                    })
+                }.start(completed: {
+                    semaphore.signal()
+                })
+                let _ = semaphore.wait(timeout: .now() + 2.0)
+                print("🧪 MOCK AUTH BOOTSTRAP: Seeded account record (Synchronously).")
+            }
+        }
+
         telegramUIDeclareEncodables()
         initializeAccountManagement()
         
@@ -983,6 +1003,17 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                     }
                 }
             }, appDelegate: self)
+
+            if MockAuth.enabled {
+                let banner = UILabel()
+                banner.text = "🧪 MOCK AUTH MODE"
+                banner.backgroundColor = UIColor.red.withAlphaComponent(0.8)
+                banner.textColor = UIColor.white
+                banner.font = UIFont.boldSystemFont(ofSize: 10.0)
+                banner.textAlignment = .center
+                banner.frame = CGRect(x: 0.0, y: 0.0, width: self.mainWindow.hostView.containerView.bounds.width, height: 20.0)
+                self.mainWindow.hostView.containerView.addSubview(banner)
+            }
             
             presentationDataPromise.set(sharedContext.presentationData)
             
@@ -1114,6 +1145,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             }
             |> deliverOnMainQueue
             |> map { accountAndSettings -> AuthorizedApplicationContext? in
+                if MockAuth.enabled {
+                    print("🧪 MOCK AUTH DEBUG (Authorized Context Selection): accountAndSettings exists: \(accountAndSettings != nil)")
+                }
                 return accountAndSettings.flatMap { context, callListSettings in
                     return AuthorizedApplicationContext(sharedApplicationContext: sharedApplicationContext, mainWindow: self.mainWindow, context: context as! AccountContextImpl, accountManager: sharedApplicationContext.sharedContext.accountManager, showCallsTab: callListSettings.showTab, reinitializedNotificationSettings: {
                         let _ = (self.context.get()
@@ -1176,6 +1210,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             }
             |> deliverOnMainQueue
             |> map { accountAndSettings -> UnauthorizedApplicationContext? in
+                if MockAuth.enabled {
+                    print("🧪 MOCK AUTH DEBUG (Unauthorized Context Suppression): accountAndSettings exists: \(accountAndSettings != nil)")
+                    return nil
+                }
                 return accountAndSettings.flatMap { account, otherAccountPhoneNumbers in
                     return UnauthorizedApplicationContext(apiId: buildConfig.apiId, apiHash: buildConfig.apiHash, sharedContext: sharedApplicationContext.sharedContext, account: account, otherAccountPhoneNumbers: otherAccountPhoneNumbers)
                 }

@@ -1082,6 +1082,9 @@ public final class Network: NSObject, MTRequestMessageServiceDelegate {
     }
     
     public func requestWithAdditionalInfo<T>(_ data: (FunctionDescription, Buffer, DeserializeFunctionResponse<T>), info: NetworkRequestAdditionalInfo, tag: NetworkRequestDependencyTag? = nil, automaticFloodWait: Bool = true, onFloodWaitError: ((String) -> Void)? = nil) -> Signal<NetworkRequestResult<T>, MTRpcError> {
+        if MockAuth.enabled {
+            return .never()
+        }
         let requestService = self.requestService
         return Signal { subscriber in
             let request = MTRequest()
@@ -1154,6 +1157,9 @@ public final class Network: NSObject, MTRequestMessageServiceDelegate {
     }
     
     public func request<T>(_ data: (FunctionDescription, Buffer, DeserializeFunctionResponse<T>), tag: NetworkRequestDependencyTag? = nil, automaticFloodWait: Bool = true, onFloodWaitError: ((String) -> Void)? = nil) -> Signal<T, MTRpcError> {
+        if MockAuth.enabled {
+            return .never()
+        }
         let requestService = self.requestService
         return Signal { subscriber in
             let request = MTRequest()
