@@ -112,7 +112,10 @@ public final class LiquidLensView: UIView {
     private var pendingLensParams: LensParams?
 
     private var liftedDisplayLink: SharedDisplayLinkDriver.Link?
-
+    
+    // Touch tracking for legacy stretching effect (iOS 13-25)
+    private var initialTouchLocation: CGPoint?
+    private var lastTouchLocation: CGPoint?
     public var selectionX: CGFloat? {
         return self.params?.selectionX
     }
@@ -239,6 +242,10 @@ public final class LiquidLensView: UIView {
     }
 
     public func beganGesture(at location: CGPoint) {
+        // Store initial touch position for stretch calculation
+        self.initialTouchLocation = location
+        self.lastTouchLocation = location
+        
         if let legacySelectionView = self.legacySelectionView {
             let transition = ComponentTransition.easeInOut(duration: 0.2)
             transition.setScale(view: legacySelectionView, scale: 0.8)
@@ -247,14 +254,85 @@ public final class LiquidLensView: UIView {
     }
 
     public func updateTouch(at location: CGPoint) {
+        guard let legacySelectionView = self.legacySelectionView else { return }
+        guard let initialLocation = self.initialTouchLocation else { return }
+        
+        self.lastTouchLocation = location
+        
+        // Calculate drag vector from initial touch point
+        let dx = location.x - initialLocation.x
+        let dy = location.y - initialLocation.y
+        let dragMagnitude = sqrt(dx * dx + dy * dy)
+        
+        // Only apply stretching if drag is significant enough
+        guard dragMagnitude > 5.0 else {
+            return
+        }
+        
+        // Calculate stretch factor based on drag distance
+        // Use non-linear scaling for more natural feel
+        let stretchFactor = min(1.0 + dragMagnitude / 150.0, 1.25)
+        let compressFactor = max(0.85, 1.0 / sqrt(stretchFactor))
+        
+        // Determine primary drag direction
+        let isDragPrimarilyHorizontal = abs(dx) > abs(dy)
+        
+        // Apply directional stretching
+        let transform: CGAffineTransform
+        if isDragPrimarilyHorizontal {
+            // Horizontal drag - stretch horizontally, compress vertically
+            transform = CGAffineTransform(scaleX: stretchFactor, y: compressFactor)
+        } else {
+            // Vertical drag - stretch vertically, compress horizontally
+            transform = CGAffineTransform(scaleX: compressFactor, y: stretchFactor)
+        }
+        
+        // Apply transform smoothly
+        UIView.animate(withDuration: 0.1, delay: 0, options: [.curveEaseOut, .beginFromCurrentState], animations: {
+            legacySelectionView.transform = transform
+        })
+        
+        // Also apply to mask views if present
+        if let legacyContentMaskBlobView = self.legacyContentMaskBlobView {
+            UIView.animate(withDuration: 0.1, delay: 0, options: [.curveEaseOut, .beginFromCurrentState], animations: {
+                legacyContentMaskBlobView.transform = transform
+            })
+        }
+        if let legacyLiftedContentBlobMaskView = self.legacyLiftedContentBlobMaskView {
+            UIView.animate(withDuration: 0.1, delay: 0, options: [.curveEaseOut, .beginFromCurrentState], animations: {
+                legacyLiftedContentBlobMaskView.transform = transform
+            })
+        }
     }
 
     public func endedGesture(at location: CGPoint) {
+        // Reset transforms with spring animation
         if let legacySelectionView = self.legacySelectionView {
+            // Only animate alpha via ComponentTransition
             let transition = ComponentTransition.spring(duration: 0.4)
-            transition.setScale(view: legacySelectionView, scale: 1.0)
             transition.setAlpha(view: legacySelectionView, alpha: 1.0)
+            
+            // Reset custom transform (handles both scale AND stretch)
+            UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 0, options: [.curveEaseOut], animations: {
+                legacySelectionView.transform = .identity
+            })
         }
+        
+        // Reset mask views
+        if let legacyContentMaskBlobView = self.legacyContentMaskBlobView {
+            UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 0, options: [.curveEaseOut], animations: {
+                legacyContentMaskBlobView.transform = .identity
+            })
+        }
+        if let legacyLiftedContentBlobMaskView = self.legacyLiftedContentBlobMaskView {
+            UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 0, options: [.curveEaseOut], animations: {
+                legacyLiftedContentBlobMaskView.transform = .identity
+            })
+        }
+        
+        // Clear tracking variables
+        self.initialTouchLocation = nil
+        self.lastTouchLocation = nil
     }
 
     public func cancelGesture() {
